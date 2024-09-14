@@ -72,32 +72,30 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+
     - name: Download processed data
       uses: actions/download-artifact@v3
       with:
         name: processed-data
 
-    - name: Create Issue with Job Results
-      uses: actions/github-script@v6
-      with:
-        github-token: ${{secrets.GITHUB_TOKEN}}
-        script: |
-          const fs = require('fs');
-          const jobsFile = '${{ env.RELEVANT_JOBS_FILE }}';
-          const jobs = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
-          
-          let issueBody = '## New Relevant Jobs Found\n\n';
-          jobs.forEach((job, index) => {
-            issueBody += `### ${index + 1}. ${job.Title || 'No Title'}\n`;
-            issueBody += `- Link: ${job.Link || 'No Link'}\n`;
-            issueBody += `- Education Level: ${job['Education Level'] || 'Not specified'}\n`;
-            issueBody += `- Job Category: ${job['Job Category'] || 'Not specified'}\n`;
-            issueBody += `- Group Classification: ${job['Group Classification'] || 'Not specified'}\n\n`;
-          });
+    - name: Send Telegram Notification
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: python telegram_notifier.py
 
-          github.rest.issues.create({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            title: `New Relevant Jobs - ${new Date().toISOString().split('T')[0]}`,
-            body: issueBody
-          });
+    - name: Commit and push relevant jobs
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add relevant_jobs/
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update relevant jobs data" && git push)
