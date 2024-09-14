@@ -9,10 +9,10 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: '3.x'
 
@@ -25,7 +25,7 @@ jobs:
       run: python job_scraper.py
 
     - name: Upload scraped data
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: scraped-data
         path: |
@@ -43,15 +43,15 @@ jobs:
     needs: scrape
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: '3.x'
 
     - name: Download scraped data
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: scraped-data
 
@@ -61,7 +61,7 @@ jobs:
         echo "RELEVANT_JOBS_FILE=$(python job_processor.py | grep 'Saved to' | cut -d ' ' -f 4)" >> $GITHUB_ENV
 
     - name: Upload processed data
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: processed-data
         path: ${{ env.RELEVANT_JOBS_FILE }}
@@ -70,10 +70,10 @@ jobs:
     needs: process
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Download processed data
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: processed-data
 
