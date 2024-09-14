@@ -27,55 +27,18 @@ jobs:
       - name: Run job scraper
         run: python job_scraper.py
 
-      - name: Commit and push if changes
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add jobs_all_processed.json new_jobs.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update job data" && git push)
-
-  process:
-    needs: scrape
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
       - name: Run job processor
         run: python job_processor.py
-
-      - name: Commit and push processed data
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add relevant_jobs/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update processed job data" && git push)
-
-  notify:
-    needs: process
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
 
       - name: Send Telegram Notification
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegram_notifier.py
+
+      - name: Commit and push if changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add jobs_all_processed.json new_jobs.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update job data" && git push)
