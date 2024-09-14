@@ -1,0 +1,179 @@
+{
+    "keywords": [
+        {
+            "en": "Data",
+            "fr": "Données",
+            "de": "Daten"
+        },
+        {
+            "en": "Tech",
+            "fr": "Technologie",
+            "de": "Technologie"
+        },
+        {
+            "en": "Developer",
+            "fr": "Développeur",
+            "de": "Entwickler"
+        },
+        {
+            "en": "Engineer",
+            "fr": "Ingénieur",
+            "de": "Ingenieur"
+        },
+        {
+            "en": "IT",
+            "fr": "Informatique",
+            "de": "Informatik"
+        },
+        {
+            "en": "Artificial Intelligence",
+            "fr": "Intelligence Artificielle",
+            "de": "Künstliche Intelligenz"
+        },
+        {
+            "en": "Machine Learning",
+            "fr": "Apprentissage Automatique",
+            "de": "Maschinelles Lernen"
+        },
+        {
+            "en": "Data Science",
+            "fr": "Science des Données",
+            "de": "Datenwissenschaft"
+        },
+        {
+            "en": "Business Intelligence",
+            "fr": "Intelligence d'Affaires",
+            "de": "Business Intelligence"
+        },
+        {
+            "en": "Data Analysis",
+            "fr": "Analyse de Données",
+            "de": "Datenanalyse"
+        },
+        {
+            "en": "Software",
+            "fr": "Logiciel",
+            "de": "Software"
+        },
+        {
+            "en": "Database",
+            "fr": "Base de Données",
+            "de": "Datenbank"
+        },
+        {
+            "en": "Cloud",
+            "fr": "Cloud",
+            "de": "Cloud"
+        },
+        {
+            "en": "Big Data",
+            "fr": "Big Data",
+            "de": "Big Data"
+        },
+        {
+            "en": "Data Mining",
+            "fr": "Exploration de Données",
+            "de": "Data Mining"
+        },
+        {
+            "en": "Statistics",
+            "fr": "Statistiques",
+            "de": "Statistik"
+        },
+        {
+            "en": "Programming",
+            "fr": "Programmation",
+            "de": "Programmierung"
+        },
+        {
+            "en": "Algorithm",
+            "fr": "Algorithme",
+            "de": "Algorithmus"
+        },
+        {
+            "en": "Data Visualization",
+            "fr": "Visualisation de Données",
+            "de": "Datenvisualisierung"
+        },
+        {
+            "en": "Project Management",
+            "fr": "Gestion de Projet",
+            "de": "Projektmanagement"
+        },
+        {
+            "en": "Site Reliability Engineer",
+            "fr": "Ingénieur en Fiabilité de Site",
+            "de": "Site Reliability Engineer"
+        },
+        {
+            "en": "SRE",
+            "fr": "SRE",
+            "de": "SRE"
+        },
+        {
+            "en": "Project Manager",
+            "fr": "Chef de Projet",
+            "de": "Projektmanager"
+        },
+        {
+            "en": "Network Engineer",
+            "fr": "Ingénieur Réseaux",
+            "de": "Netzwerkingenieur"
+        },
+        {
+            "en": "Telecommunications",
+            "fr": "Télécommunications",
+            "de": "Telekommunikation"
+        },
+        {
+            "en": "Systems Administrator",
+            "fr": "Administrateur Systèmes",
+            "de": "Systemadministrator"
+        },
+        {
+            "en": "Digital Forensic",
+            "fr": "Forensique Numérique",
+            "de": "Digitale Forensik"
+        },
+        {
+            "en": "Security Analyst",
+            "fr": "Analyste Sécurité",
+            "de": "Sicherheitsanalyst"
+        },
+        {
+            "en": "Information Security",
+            "fr": "Sécurité de l'Information",
+            "de": "Informationssicherheit"
+        },
+        {
+            "en": "Cybersecurity",
+            "fr": "Cybersécurité",
+            "de": "Cybersicherheit"
+        },
+        {
+            "en": "Full Stack Developer",
+            "fr": "Développeur Full Stack",
+            "de": "Full-Stack-Entwickler"
+        },
+        {
+            "en": "Computer Scientist",
+            "fr": "Informaticien",
+            "de": "Informatiker"
+        },
+        {
+            "en": "Innovation",
+            "fr": "Innovation",
+            "de": "Innovation"
+        },
+        {
+            "en": "Digital",
+            "fr": "Numérique",
+            "de": "Digital"
+        },
+        {
+            "en": "Data Management",
+            "fr": "Gestion des Données",
+            "de": "Datenmanagement"
+        }
+    ]
+}
