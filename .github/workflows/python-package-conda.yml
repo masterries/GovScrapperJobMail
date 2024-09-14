@@ -1,4 +1,4 @@
-name: Scrape Jobs
+name: Job Scraping and Processing Pipeline
 
 on:
   schedule:
@@ -8,7 +8,6 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
 
@@ -25,9 +24,80 @@ jobs:
     - name: Run job scraper
       run: python job_scraper.py
 
+    - name: Upload scraped data
+      uses: actions/upload-artifact@v2
+      with:
+        name: scraped-data
+        path: |
+          jobs_all_processed.json
+          new_jobs.json
+
     - name: Commit and push if changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add jobs_all_processed.json new_jobs.json
         git diff --quiet && git diff --staged --quiet || (git commit -m "Update job data" && git push)
+
+  process:
+    needs: scrape
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Download scraped data
+      uses: actions/download-artifact@v2
+      with:
+        name: scraped-data
+
+    - name: Run job processor
+      run: |
+        python job_processor.py
+        echo "RELEVANT_JOBS_FILE=$(python job_processor.py | grep 'Saved to' | cut -d ' ' -f 4)" >> $GITHUB_ENV
+
+    - name: Upload processed data
+      uses: actions/upload-artifact@v2
+      with:
+        name: processed-data
+        path: ${{ env.RELEVANT_JOBS_FILE }}
+
+  notify:
+    needs: process
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Download processed data
+      uses: actions/download-artifact@v2
+      with:
+        name: processed-data
+
+    - name: Create Issue with Job Results
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          const fs = require('fs');
+          const jobsFile = '${{ env.RELEVANT_JOBS_FILE }}';
+          const jobs = JSON.parse(fs.readFileSync(jobsFile, 'utf8'));
+          
+          let issueBody = '## New Relevant Jobs Found\n\n';
+          jobs.forEach((job, index) => {
+            issueBody += `### ${index + 1}. ${job.Title || 'No Title'}\n`;
+            issueBody += `- Link: ${job.Link || 'No Link'}\n`;
+            issueBody += `- Education Level: ${job['Education Level'] || 'Not specified'}\n`;
+            issueBody += `- Job Category: ${job['Job Category'] || 'Not specified'}\n`;
+            issueBody += `- Group Classification: ${job['Group Classification'] || 'Not specified'}\n\n`;
+          });
+
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `New Relevant Jobs - ${new Date().toISOString().split('T')[0]}`,
+            body: issueBody
+          });
