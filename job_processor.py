@@ -39,7 +39,7 @@ def save_relevant_jobs(relevant_jobs):
     return file_name
 
 def main():
-    jobs = load_json('jobs_all_processed.json')
+    jobs = load_json('new_jobs.json')
     keywords_data = load_json('keywords.json')
 
     if not jobs or not keywords_data:
