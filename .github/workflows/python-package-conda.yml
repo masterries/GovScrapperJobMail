@@ -64,13 +64,13 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: processed-data
-        path: ${{ env.RELEVANT_JOBS_FILE }}
+        path: relevant_jobs/
 
     - name: Commit and push processed data
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add ${{ env.RELEVANT_JOBS_FILE }}
+        git add relevant_jobs/
         git diff --quiet && git diff --staged --quiet || (git commit -m "Update processed job data" && git push)
 
   notify:
