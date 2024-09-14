@@ -24,14 +24,6 @@ jobs:
     - name: Run job scraper
       run: python job_scraper.py
 
-    - name: Upload scraped data
-      uses: actions/upload-artifact@v3
-      with:
-        name: scraped-data
-        path: |
-          jobs_all_processed.json
-          new_jobs.json
-
     - name: Commit and push if changes
       run: |
         git config --local user.email "action@github.com"
@@ -50,21 +42,8 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Download scraped data
-      uses: actions/download-artifact@v3
-      with:
-        name: scraped-data
-
     - name: Run job processor
-      run: |
-        python job_processor.py
-        echo "RELEVANT_JOBS_FILE=$(python job_processor.py | grep 'Saved to' | cut -d ' ' -f 4)" >> $GITHUB_ENV
-
-    - name: Upload processed data
-      uses: actions/upload-artifact@v3
-      with:
-        name: processed-data
-        path: relevant_jobs/
+      run: python job_processor.py
 
     - name: Commit and push processed data
       run: |
@@ -72,6 +51,7 @@ jobs:
         git config --local user.name "GitHub Action"
         git add relevant_jobs/
         git diff --quiet && git diff --staged --quiet || (git commit -m "Update processed job data" && git push)
+
   notify:
     needs: process
     runs-on: ubuntu-latest
@@ -93,10 +73,3 @@ jobs:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: python telegram_notifier.py
-
-    - name: Commit and push relevant jobs
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add relevant_jobs/
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Update relevant jobs data" && git push)
