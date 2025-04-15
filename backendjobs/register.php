@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'db_connect.php'; // Datei mit Datenbankverbindung
+require_once './db_connect.php'; // Include your database connection
 
 $errors = [];
 
@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
 
-    // Validierung
+    // Validation
     if (empty($username)) {
         $errors['username'] = 'Benutzername ist erforderlich';
     } elseif (!preg_match('/^[a-zA-Z0-9_]{3,20}$/', $username)) {
@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors['password_confirm'] = 'Passwörter stimmen nicht überein';
     }
 
-    // Prüfen, ob Benutzername oder E-Mail bereits existiert
+    // Check if username or email already exists
     if (empty($errors)) {
         $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? OR email = ?");
         $stmt->execute([$username, $email]);
@@ -42,21 +42,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Benutzer erstellen, wenn keine Fehler aufgetreten sind
+    // Create user if no errors are found
     if (empty($errors)) {
-        // Hash des Passworts erstellen
+        // Create a hash of the password
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
         
-        // Verifizierungstoken erstellen
-        $verification_token = bin2hex(random_bytes(32));
-        
-        $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash, verification_token) VALUES (?, ?, ?, ?)");
-        if ($stmt->execute([$username, $email, $password_hash, $verification_token])) {
-            // E-Mail mit Verifizierungslink senden (siehe separate Funktion)
-            sendVerificationEmail($email, $verification_token);
+        // Insert the user without email verification
+        $stmt = $pdo->prepare("INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)");
+        if ($stmt->execute([$username, $email, $password_hash])) {
+            // Automatically log the user in (blind login)
+            $_SESSION['user_id'] = $pdo->lastInsertId();
+            $_SESSION['username'] = $username;
             
-            $_SESSION['registration_success'] = true;
-            header("Location: login.php");
+            // Redirect to a protected page (e.g., dashboard.php)
+            header("Location: dashboard.php");
             exit;
         } else {
             $errors['db'] = 'Registrierung fehlgeschlagen. Bitte versuche es später noch einmal.';
@@ -102,7 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="mb-3">
                                 <label for="password" class="form-label">Passwort</label>
                                 <input type="password" class="form-control" id="password" name="password" required>
-                                <small class="text-muted">Mindestens 8 Zeichen</small>
+                                <small class="text-muted">Mindestens 6 Zeichen</small>
                             </div>
                             <div class="mb-3">
                                 <label for="password_confirm" class="form-label">Passwort bestätigen</label>
