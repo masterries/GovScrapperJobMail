@@ -47,3 +47,12 @@ jobs:
           git config --local user.name "GitHub Action"
           git add jobs_all_processed.json new_jobs.json
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update job data" && git push)
+      
+            # Trigger the database import workflow
+            
+      - name: Trigger DB Import Workflow
+        if: success()
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.WORKFLOW_PAT }}
+          event-type: trigger-db-import
