@@ -30,10 +30,10 @@ jobs:
       - name: Run job processor
         run: python job_processor.py
 
-      - name: Import jobs to Firebase
-        env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: python firebase_importer.py
+      #- name: Import jobs to Firebase
+      #  env:
+      #    FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      #  run: python firebase_importer.py
 
       - name: Send Telegram Notification
         env:
