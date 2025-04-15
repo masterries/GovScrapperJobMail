@@ -1,0 +1,29 @@
+name: Deploy to SFTP Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Deploy files via SFTP
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.SFTPSERVERURL }}
+        username: ${{ secrets.SFTPSERVERUSER }}
+        password: ${{ secrets.SFTPSERVERPASSWORD }}
+        protocol: sftp
+        port: 22
+        local-dir: ./
+        server-dir: /pfad/zum/webroot/
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
