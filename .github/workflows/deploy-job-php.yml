@@ -12,19 +12,13 @@ jobs:
       uses: actions/checkout@v3
     
     - name: Deploy via SFTP
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
       with:
         server: ${{ secrets.SFTPSERVERURL }}
         username: ${{ secrets.SFTPSERVERUSER }}
         password: ${{ secrets.SFTPSERVERPASSWORD }}
-        protocol: sftp
         port: 22
-        local-dir: ./backendjobs  # Das Stammverzeichnis deines Repositories
-        server-dir: ./  # Da dein Benutzer bereits im richtigen Ordner landet
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/.github/**
-          **/node_modules/**
-          README.md
-          .env.example
+        local_path: './backendjobs/*'  # Alle Dateien im backendjobs Ordner
+        remote_path: './'  # Da dein Benutzer bereits im richtigen Ordner landet
+        sftp_only: true
+        delete_remote_files: false
