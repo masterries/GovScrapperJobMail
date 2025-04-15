@@ -1,9 +1,7 @@
-name: Deploy to SFTP Server
+name: Manuelles SFTP Deployment
 
 on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch:  # Ermöglicht manuelle Auslösung über die GitHub UI
 
 jobs:
   deploy:
@@ -12,8 +10,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      
-    - name: Deploy files via SFTP
+    
+    - name: Deploy via SFTP
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
         server: ${{ secrets.SFTPSERVERURL }}
@@ -21,9 +19,12 @@ jobs:
         password: ${{ secrets.SFTPSERVERPASSWORD }}
         protocol: sftp
         port: 22
-        local-dir: ./
-        server-dir: /pfad/zum/webroot/
+        local-dir: ./backendjobs  # Das Stammverzeichnis deines Repositories
+        server-dir: ./  # Da dein Benutzer bereits im richtigen Ordner landet
         exclude: |
           **/.git*
           **/.git*/**
+          **/.github/**
           **/node_modules/**
+          README.md
+          .env.example
