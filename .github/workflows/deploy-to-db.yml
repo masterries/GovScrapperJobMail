@@ -42,7 +42,7 @@ jobs:
           JSON_FILE: 'jobs_all_processed.json'
           TABLE_NAME: 'jobs'
           AUTO_MODE: 'true'
-        run: python jobs_db_importer.py
+        run: python import_to_mysql.py
       
       - name: Report status
         if: ${{ always() }}
