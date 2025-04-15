@@ -1,0 +1,54 @@
+name: Import Jobs to Database
+
+on:
+  # Run on schedule (every day at 3:00 AM)
+  schedule:
+    - cron: '0 3 * * *'
+  
+  # Run manually from the Actions tab
+  workflow_dispatch:
+  
+  # Run on push to main branch
+  push:
+    branches: [ main ]
+    paths:
+      - 'jobs_all_processed.json'
+
+jobs:
+  import-jobs:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pymysql
+      
+      - name: Import jobs to database
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          JSON_FILE: 'jobs_all_processed.json'
+          TABLE_NAME: 'jobs'
+          AUTO_MODE: 'true'
+        run: python jobs_db_importer.py
+      
+      - name: Report status
+        if: ${{ always() }}
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ Import successful!"
+          else
+            echo "❌ Import failed!"
+          fi
