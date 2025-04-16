@@ -11,21 +11,58 @@ function initDataTable() {
         if (isGuest) {
             // Guest view (no pin/note columns)
             columnDefs = [
-                { "orderable": false, "targets": [3] }, // Disable sorting for actions column
-                { "type": "num", "targets": [2] },     // Date column is numeric for sorting
-                { "visible": false, "targets": [0] }   // Hide the pin status column (used only for sorting)
+                { "orderable": false, "targets": [4] }, // Disable sorting for actions column (letzte Spalte)
+                { 
+                    "type": "num", // Sortiere nach Unix-Timestamp
+                    "targets": [3], // Erstellt am
+                    "render": function(data, type, row, meta) {
+                        if (type === 'sort') {
+                            // Suche das data-sort Attribut im aktuellen Zellen-Element
+                            var td = meta && meta.settings && meta.settings.aoData[meta.row] && meta.settings.aoData[meta.row].anCells[meta.col];
+                            if (td && td.getAttribute) {
+                                var sortVal = td.getAttribute('data-sort');
+                                return sortVal ? parseInt(sortVal, 10) : 0;
+                            }
+                        }
+                        return data;
+                    }
+                },
+                { "visible": false, "targets": [0] }    // Hide the pin status column (used only for sorting)
             ];
         } else {
             // Regular user view (with pin/note columns)
             columnDefs = [
-                { "orderable": false, "targets": [1, 2, 6] }, // Disable sorting for pin, note and actions columns
-                { "type": "num", "targets": [5] },            // Date column is numeric for sorting
-                { "visible": false, "targets": [0] }          // Hide the pin status column (used only for sorting)
+                { "orderable": false, "targets": [1, 2, 6] }, // Disable sorting for pin, notes and actions columns
+                { 
+                    "type": "num",  // Use numeric sorting like in guest view
+                    "targets": [5], // Erstellt am column
+                    "orderable": true,
+                    "render": function(data, type, row, meta) {
+                        if (type === 'sort') {
+                            var td = meta && meta.settings && meta.settings.aoData[meta.row] && meta.settings.aoData[meta.row].anCells[meta.col];
+                            if (td && td.getAttribute) {
+                                var sortVal = td.getAttribute('data-sort');
+                                return sortVal ? parseInt(sortVal, 10) : 0;
+                            }
+                        }
+                        return data;
+                    }
+                },
+                { "visible": false, "targets": [0] }  // Hide the pin status column (used only for sorting)
             ];
         }
         
+        // Remove the date-de sorting function as we're using numeric timestamps
+        if (!$.fn.dataTable.ext.type.search['num']) {
+            $.fn.dataTable.ext.type.order['num-pre'] = function(data) {
+                return typeof data === 'string' ?
+                    (data === "" ? 0 : parseInt(data, 10)) :
+                    (typeof data === 'number' ? data : 0);
+            };
+        }
+        
         $('#jobsTable').DataTable({
-            "order": [[0, "desc"], [isGuest ? 2 : 5, "desc"]], // Sort by is_pinned first, then created_at
+            "order": [[0, "desc"], [isGuest ? 3 : 5, "desc"]], // Sort by is_pinned first, then created_at
             "orderFixed": { "pre": [0, "desc"] }, // Always keep pinned jobs on top regardless of user sorting
             "language": {
                 "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/de-DE.json"
