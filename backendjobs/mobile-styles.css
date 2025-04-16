@@ -1,0 +1,243 @@
+/* mobile-styles.css */
+
+/* Grundlegende Anpassungen für alle Bildschirmgrößen */
+body {
+    overflow-x: hidden;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Mobile Optimierungen (Bildschirme kleiner als 768px) */
+@media (max-width: 767.98px) {
+    /* Header-Anpassungen */
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    /* Header-Layout für mobile Ansicht */
+    .d-flex.justify-content-between.align-items-center {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    
+    .d-flex.justify-content-between.align-items-center h4 {
+        margin-bottom: 15px;
+        text-align: center;
+    }
+    
+    .d-flex.justify-content-between.align-items-center > div {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    /* Buttons in der Headerleiste */
+    .d-flex.justify-content-between.align-items-center .btn {
+        margin-bottom: 10px;
+        width: 100%;
+    }
+    
+    /* Zeitraum-Aktualisierung */
+    .input-group {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    /* Tab-Anpassungen */
+    .nav-tabs {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+    }
+    
+    .nav-tabs::-webkit-scrollbar {
+        display: none; /* Chrome, Safari */
+    }
+    
+    .nav-tabs .nav-item {
+        white-space: nowrap;
+    }
+    
+    .nav-tabs .nav-item .nav-link {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    
+    /* Filteraktionen in Tabs */
+    .nav-tabs .nav-item .filter-actions {
+        display: flex;
+        position: static;
+        transform: none;
+        margin-left: 5px;
+    }
+    
+    /* Tab-Inhalt */
+    .tab-content {
+        padding: 10px;
+    }
+    
+    /* Job-Tabelle */
+    #jobsTable_wrapper {
+        padding: 0;
+    }
+    
+    #jobsTable_filter input {
+        width: 100%;
+        margin-left: 0 !important; /* DataTables spezifisch */
+    }
+    
+    #jobsTable_filter label {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    /* DataTables Paginierung */
+    .dataTables_paginate {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-top: 15px !important;
+    }
+    
+    .paginate_button {
+        padding: 5px !important;
+    }
+    
+    /* Detailseite */
+    .job-card {
+        margin-bottom: 15px;
+    }
+}
+
+/* Tablet-Optimierungen (zwischen 768px und 991px) */
+@media (min-width: 768px) and (max-width: 991.98px) {
+    /* Dashboard-Header anpassen */
+    .d-flex.justify-content-between.align-items-center {
+        flex-wrap: wrap;
+    }
+    
+    .d-flex.justify-content-between.align-items-center > div {
+        margin-top: 10px;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    /* Statistik-Karten */
+    .stats-card {
+        margin-bottom: 15px;
+    }
+}
+
+/* Spezielle Anpassungen für Job-Details-Seite */
+@media (max-width: 767.98px) {
+    .job-details-container .row {
+        flex-direction: column;
+    }
+    
+    .job-details-container .col-md-6 {
+        width: 100%;
+    }
+    
+    .accordion-button {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+    
+    .accordion-body {
+        padding: 10px;
+    }
+    
+    /* Statistik-Seite Mobile Anpassungen */
+    .view-toggle {
+        display: flex;
+        width: 100%;
+    }
+    
+    .view-toggle .btn {
+        flex: 1;
+        font-size: 0.85rem;
+        padding: 5px;
+    }
+    
+    .chart-container {
+        height: 250px !important;
+    }
+}
+
+/* Bessere Darstellung der Keyword-Liste */
+.keyword-list li {
+    display: inline-block;
+    margin-bottom: 5px;
+    margin-right: 5px;
+}
+
+/* Gast-Banner */
+.alert.alert-warning {
+    text-align: left;
+}
+
+/* Fixes für Safari und iOS */
+@supports (-webkit-touch-callout: none) {
+    /* Safari/iOS spezifische Fixes */
+    .nav-tabs {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    input[type="date"] {
+        appearance: none;
+        -webkit-appearance: none;
+    }
+}
+
+/* Verbesserung für Notepad-Modal */
+.note-modal textarea {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Verbesserung für DataTables */
+div.dataTables_wrapper div.dataTables_paginate {
+    text-align: center;
+    margin-top: 10px;
+}
+
+/* Dark Mode Unterstützung (falls im Browser aktiviert) */
+@media (prefers-color-scheme: dark) {
+    body.dark-mode-support {
+        background-color: #121212;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode-support .card {
+        background-color: #1e1e1e;
+        border-color: #333;
+    }
+    
+    body.dark-mode-support .card-header {
+        background-color: #272727;
+        border-color: #333;
+    }
+    
+    body.dark-mode-support .table {
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode-support .table-light th {
+        background-color: #333;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode-support .alert-light {
+        background-color: #333;
+        color: #e0e0e0;
+        border-color: #444;
+    }
+}

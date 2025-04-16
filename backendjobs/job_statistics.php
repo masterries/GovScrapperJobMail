@@ -155,6 +155,20 @@ $stmt = $pdo->query("
 ");
 $jobStats['by_contract_type'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Häufige Jobtitel in unique_jobs (ähnliche Stellen)
+$stmt = $pdo->query("
+    SELECT 
+        base_title,
+        COUNT(*) as variant_count,
+        GROUP_CONCAT(DISTINCT group_classification ORDER BY group_classification SEPARATOR ', ') as classifications
+    FROM unique_jobs
+    GROUP BY base_title
+    HAVING variant_count > 1
+    ORDER BY variant_count DESC
+    LIMIT 15
+");
+$jobStats['similar_job_titles'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // Set a placeholder time_frame value for the header
 $time_frame = 0;
 ?>
@@ -163,10 +177,14 @@ $time_frame = 0;
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Job Statistiken</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="mobile-styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .stats-card {
@@ -191,6 +209,30 @@ $time_frame = 0;
         .view-toggle .active {
             background-color: #0d6efd;
             color: white;
+        }
+
+        /* Mobile-Optmierung für Statistik-Charts */
+        @media (max-width: 767.98px) {
+            .stats-mobile-scroll {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .chart-container {
+                min-width: 500px;
+                padding: 10px;
+            }
+            
+            .view-toggle-btn-group {
+                display: flex;
+                width: 100%;
+            }
+            
+            .view-toggle-btn-group .btn {
+                flex: 1;
+                padding: 5px;
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
@@ -351,6 +393,43 @@ $time_frame = 0;
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4 stats-card">
+                    <div class="card-header bg-purple text-white" style="background-color: #6f42c1;">
+                        <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Ähnliche Jobtitel (Varianten in unique_jobs)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Job Basis-Titel</th>
+                                        <th>Anzahl Varianten</th>
+                                        <th>Klassifikationen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($jobStats['similar_job_titles'] as $job): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($job['base_title']); ?></td>
+                                        <td><span class="badge bg-purple" style="background-color: #6f42c1;"><?php echo $job['variant_count']; ?></span></td>
+                                        <td><small><?php echo htmlspecialchars($job['classifications']); ?></small></td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 text-muted small">
+                            <i class="bi bi-info-circle"></i> 
+                            Diese Tabelle zeigt, wie oft derselbe Basis-Jobtitel in unterschiedlichen Varianten in der Datenbank erscheint.
+                            Ein hoher Wert bedeutet, dass dieser Jobtitel in vielen verschiedenen Stellenausschreibungen verwendet wird.
                         </div>
                     </div>
                 </div>
