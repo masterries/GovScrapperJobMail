@@ -22,3 +22,4 @@ jobs:
         remote_path: './'  # Da dein Benutzer bereits im richtigen Ordner landet
         sftp_only: true
         delete_remote_files: false
+        excludes: 'db_connect.php'  # Diese Datei ausschließen
