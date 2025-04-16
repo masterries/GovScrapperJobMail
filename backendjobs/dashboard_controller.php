@@ -373,7 +373,12 @@ function getUserPinnedJobs($pdo) {
  * Get user's job notes
  */
 function getUserJobNotes($pdo) {
-    $stmt = $pdo->prepare("SELECT job_id, note FROM job_notes WHERE user_id = ?");
+    $stmt = $pdo->prepare(
+        "SELECT jn.job_id, jn.note 
+         FROM job_notes jn
+         LEFT JOIN unique_jobs uj ON jn.job_id = uj.id OR FIND_IN_SET(jn.job_id, uj.grouped_ids)
+         WHERE jn.user_id = ?"
+    );
     $stmt->execute([$_SESSION['user_id']]);
     $job_notes = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -386,133 +391,185 @@ function getUserJobNotes($pdo) {
  * Get filtered jobs based on criteria
  */
 function getFilteredJobs($pdo, $active_filter, $search_term, $pinned_only, $pinned_job_ids, $time_frame, $search_mode = 'soft', $custom_date_from = null, $custom_date_to = null) {
-    // Build the job query based on filters
-    $where_clauses = [];
-    $params = [];
-
-    // Determine which table to use based on search mode
+    // Special case for full-text search
     if ($search_mode === 'full' && !empty($search_term)) {
-        // For full-text search, first find matching job IDs in the jobs table
-        $search_params = [];
-        $search_conditions = [];
-        $search_condition = "(title LIKE ? OR full_description LIKE ? OR job_details LIKE ? OR profile LIKE ? OR organization LIKE ? OR location LIKE ?)";
-        $search_conditions[] = $search_condition;
+        // Build search condition for all relevant fields
+        $search_fields = [
+            'title', 
+            'full_description', 
+            'general_information',
+            'job_details', 
+            'profile', 
+            'organization', 
+            'location',
+            'task',
+            'status'
+        ];
         
-        $search_param = "%{$search_term}%";
-        for ($i = 0; $i < 6; $i++) {
-            $search_params[] = $search_param;
+        $search_conditions = [];
+        $search_params = [];
+        
+        foreach ($search_fields as $field) {
+            $search_conditions[] = "$field LIKE ?";
+            $search_params[] = '%' . $search_term . '%';
         }
         
-        $search_sql = "WHERE " . implode(" OR ", $search_conditions);
-        $query = "SELECT id FROM jobs {$search_sql}";
+        $search_sql = '(' . implode(' OR ', $search_conditions) . ')';
+        
+        // Add date conditions only if specifically provided by user
+        $where_sql = $search_sql;
+        
+        if ($custom_date_from && $custom_date_to) {
+            $where_sql .= " AND created_at BETWEEN ? AND ?";
+            $search_params[] = $custom_date_from . " 00:00:00";
+            $search_params[] = $custom_date_to . " 23:59:59";
+        } elseif ($custom_date_from) {
+            $where_sql .= " AND created_at >= ?";
+            $search_params[] = $custom_date_from . " 00:00:00";
+        } elseif ($custom_date_to) {
+            $where_sql .= " AND created_at <= ?";
+            $search_params[] = $custom_date_to . " 23:59:59";
+        }
+        // No default time limit - search entire database when no dates specified
+        
+        // Build and execute the query
+        $query = "SELECT * FROM jobs WHERE {$where_sql} ORDER BY created_at DESC";
+        
+        error_log("Full-text search query: " . $query);
+        error_log("Search parameters: " . print_r($search_params, true));
         
         $stmt = $pdo->prepare($query);
         $stmt->execute($search_params);
-        $job_ids = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'id');
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Then get those jobs from the unique_jobs view to ensure we have all needed fields
-        if (!empty($job_ids)) {
-            $placeholders = implode(',', array_fill(0, count($job_ids), '?'));
-            $where_clauses[] = "id IN ({$placeholders})";
-            $params = array_merge($params, $job_ids);
-        } else {
-            // No results found
-            $where_clauses[] = "1=0";
-        }
+        error_log("Full-text search results count: " . count($results));
         
-        $table = "unique_jobs";
-    } else {
-        // Use unique_jobs view for soft search
-        $table = "unique_jobs";
-        
-        // Rest of your existing soft search code...
-        if ($pinned_only) {
-            // If we're in the pinned tab, show only pinned jobs
-            if (!empty($pinned_job_ids)) {
-                $placeholders = implode(',', array_fill(0, count($pinned_job_ids), '?'));
-                $where_clauses[] = "id IN ({$placeholders})";
-                
-                foreach ($pinned_job_ids as $pinned_id) {
-                    $params[] = $pinned_id;
-                }
-            } else {
-                // No pinned jobs, return empty result
-                $where_clauses[] = "1=0"; 
-            }
-        } else {
-            // Date conditions here...
-            // Date condition based on custom range or default time frame
-            if ($custom_date_from && $custom_date_to) {
-                $date_condition = "created_at BETWEEN ? AND ?";
-                $date_params = [$custom_date_from . " 00:00:00", $custom_date_to . " 23:59:59"];
-            } elseif ($custom_date_from) {
-                $date_condition = "created_at >= ?";
-                $date_params = [$custom_date_from . " 00:00:00"];
-            } elseif ($custom_date_to) {
-                $date_condition = "created_at <= ?";
-                $date_params = [$custom_date_to . " 23:59:59"];
-            } else {
-                // Default time frame
-                $date_limit = date('Y-m-d H:i:s', strtotime("-{$time_frame} days"));
-                $date_condition = "created_at >= ?";
-                $date_params = [$date_limit];
+        // Process results to ensure compatibility with the dashboard
+        foreach ($results as &$job) {
+            // Ensure we have base_title
+            if (empty($job['base_title'])) {
+                $job['base_title'] = $job['title'];
             }
             
-            // Pinned jobs
-            if (!empty($pinned_job_ids)) {
-                $pinned_placeholders = implode(',', array_fill(0, count($pinned_job_ids), '?'));
-                $pinned_condition = "id IN ({$pinned_placeholders})";
-                
-                // Get either pinned jobs OR jobs within time frame
-                $where_clauses[] = "({$pinned_condition} OR {$date_condition})";
-                
-                // Add parameters for pinned jobs
-                foreach ($pinned_job_ids as $pinned_id) {
-                    $params[] = $pinned_id;
-                }
-                
-                // Add parameter for date condition
-                foreach ($date_params as $date_param) {
-                    $params[] = $date_param;
-                }
-            } else {
-                // No pinned jobs, just use date condition
-                $where_clauses[] = $date_condition;
-                foreach ($date_params as $date_param) {
-                    $params[] = $date_param;
+            // Try to extract classification from title if not available
+            if (empty($job['group_classification'])) {
+                if (preg_match('/\(réf\.\s*([A-Z][0-9]+)\)/', $job['title'], $matches)) {
+                    $job['group_classification'] = $matches[1];
+                } else {
+                    $job['group_classification'] = '';
                 }
             }
+            
+            // Ensure we have group_id for details page
+            if (empty($job['group_id'])) {
+                $job['group_id'] = $job['id'];
+            }
+            
+            // Set grouped_ids if not available
+            if (empty($job['grouped_ids'])) {
+                $job['grouped_ids'] = $job['id'];
+            }
         }
+        
+        return $results;
+    }
+    
+    // For soft search, use unique_jobs view
+    $table = "unique_jobs";
+    $where_clauses = [];
+    $params = [];
+    
+    if ($pinned_only) {
+        // If we're in the pinned tab, show only pinned jobs
+        if (!empty($pinned_job_ids)) {
+            $placeholders = implode(',', array_fill(0, count($pinned_job_ids), '?'));
+            $where_clauses[] = "(id IN ({$placeholders}) OR " .
+                              implode(' OR ', array_fill(0, count($pinned_job_ids), "grouped_ids LIKE ?")) . ")";
 
-        // Keywords/search for soft search
-        if ($active_filter) {
-            $keyword_conditions = [];
-            $keywords = explode(', ', $active_filter['keywords']);
-            
-            foreach ($keywords as $keyword) {
-                if (!empty($keyword)) {
-                    // Soft search on unique_jobs view
-                    $keyword_condition = "(base_title LIKE ? OR group_classification LIKE ?)";
-                    $keyword_conditions[] = $keyword_condition;
-                    
-                    $keyword_param = "%{$keyword}%";
-                    $params[] = $keyword_param;
-                    $params[] = $keyword_param;
-                }
+            foreach ($pinned_job_ids as $pinned_id) {
+                $params[] = $pinned_id;
             }
-            
-            if (!empty($keyword_conditions)) {
-                $where_clauses[] = "(" . implode(" OR ", $keyword_conditions) . ")";
+            foreach ($pinned_job_ids as $pinned_id) {
+                $params[] = "%{$pinned_id}%"; // Add LIKE condition for grouped_ids
             }
-        } elseif ($search_term && $search_mode === 'soft') {
-            // Soft search
-            $search_condition = "(base_title LIKE ? OR group_classification LIKE ?)";
-            $where_clauses[] = $search_condition;
-            
-            $search_param = "%{$search_term}%";
-            $params[] = $search_param;
-            $params[] = $search_param;
+        } else {
+            // No pinned jobs, return empty result
+            $where_clauses[] = "1=0"; // This will result in no rows being returned
         }
+    } else {
+        // For other tabs, build a more complex query to prioritize pinned jobs but respect time frame
+        
+        // Date condition based on custom range or default time frame
+        if ($custom_date_from && $custom_date_to) {
+            $date_condition = "created_at BETWEEN ? AND ?";
+            $date_params = [$custom_date_from . " 00:00:00", $custom_date_to . " 23:59:59"];
+        } elseif ($custom_date_from) {
+            $date_condition = "created_at >= ?";
+            $date_params = [$custom_date_from . " 00:00:00"];
+        } elseif ($custom_date_to) {
+            $date_condition = "created_at <= ?";
+            $date_params = [$custom_date_to . " 23:59:59"];
+        } else {
+            // Default time frame
+            $date_limit = date('Y-m-d H:i:s', strtotime("-{$time_frame} days"));
+            $date_condition = "created_at >= ?";
+            $date_params = [$date_limit];
+        }
+        
+        // If we have pinned jobs, add them to the query
+        if (!empty($pinned_job_ids)) {
+            $pinned_placeholders = implode(',', array_fill(0, count($pinned_job_ids), '?'));
+            $pinned_condition = "id IN ({$pinned_placeholders})";
+            
+            // Get either pinned jobs OR jobs within time frame
+            $where_clauses[] = "({$pinned_condition} OR {$date_condition})";
+            
+            // Add parameters for pinned jobs
+            foreach ($pinned_job_ids as $pinned_id) {
+                $params[] = $pinned_id;
+            }
+            
+            // Add parameter for date condition
+            foreach ($date_params as $date_param) {
+                $params[] = $date_param;
+            }
+        } else {
+            // No pinned jobs, just use date condition
+            $where_clauses[] = $date_condition;
+            foreach ($date_params as $date_param) {
+                $params[] = $date_param;
+            }
+        }
+    }
+
+    // Keyword filter (if a filter is selected)
+    if ($active_filter) {
+        $keyword_conditions = [];
+        $keywords = explode(', ', $active_filter['keywords']);
+        
+        foreach ($keywords as $keyword) {
+            if (!empty($keyword)) {
+                // Soft search on unique_jobs view
+                $keyword_condition = "(base_title LIKE ? OR group_classification LIKE ?)";
+                $keyword_conditions[] = $keyword_condition;
+                
+                $keyword_param = "%{$keyword}%";
+                $params[] = $keyword_param;
+                $params[] = $keyword_param;
+            }
+        }
+        
+        if (!empty($keyword_conditions)) {
+            $where_clauses[] = "(" . implode(" OR ", $keyword_conditions) . ")";
+        }
+    } elseif ($search_term && $search_mode === 'soft') {
+        // Soft search
+        $search_condition = "(base_title LIKE ? OR group_classification LIKE ?)";
+        $where_clauses[] = $search_condition;
+        
+        $search_param = "%{$search_term}%";
+        $params[] = $search_param;
+        $params[] = $search_param;
     }
 
     // Combine where clauses
@@ -521,9 +578,25 @@ function getFilteredJobs($pdo, $active_filter, $search_term, $pinned_only, $pinn
     // Create the complete query
     $query = "SELECT * FROM {$table} {$where_sql} ORDER BY created_at DESC";
 
+    // Debug: Log the SQL query and parameters
+    error_log("Soft search query: " . $query);
+    error_log("Parameters: " . print_r($params, true));
+
     // Execute query
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Helper function to extract classification from title
+function extractClassification($title) {
+    // Beispiel: Extrahiere Referenznummern oder andere Klassifikationselemente
+    if (preg_match('/\(réf\.\s*([A-Z][0-9]+)\)/', $title, $matches)) {
+        return $matches[1];
+    }
+    
+    // Weitere Erkennungsmuster könnten hier hinzugefügt werden
+    
+    return 'Unklassifiziert';
 }
 ?>

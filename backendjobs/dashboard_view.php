@@ -333,11 +333,11 @@ require_once 'dashboard_header.php';
                         <tbody>
                             <?php foreach ($jobs as $job): ?>
                                 <?php 
-                                $is_pinned = in_array($job['id'], $pinned_job_ids);
-                                $has_note = isset($job_notes[$job['id']]);
+                                $is_pinned = in_array($job['id'], $pinned_job_ids) || array_intersect(explode(',', $job['grouped_ids']), $pinned_job_ids);
+                                $has_note = isset($job_notes[$job['id']]) || array_intersect(explode(',', $job['grouped_ids']), array_keys($job_notes));
                                 ?>
                                 <tr class="<?php echo $is_pinned ? 'pinned' : ''; ?>" data-job-id="<?php echo $job['id']; ?>">
-                                    <td class="pin-status-column"><?php echo $is_pinned ? '1' : '0'; ?></td>
+                                    <td class="pin-status-column"> <?php echo $is_pinned ? '1' : '0'; ?> </td>
                                     <td class="text-center">
                                         <form method="POST" class="pin-form">
                                             <input type="hidden" name="job_id" value="<?php echo $job['id']; ?>">
