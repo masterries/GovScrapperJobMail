@@ -1,6 +1,19 @@
 <?php
+// Configuration flag to disable registration
+$registration_disabled = true; // Setze auf false, um die Registrierung zu aktivieren
+
 session_start();
 require_once './db_connect.php'; // Include your database connection
+
+// Guest login functionality
+if (isset($_GET['guest'])) {
+    // Create a guest session
+    $_SESSION['user_id'] = 0; // Special ID for guests
+    $_SESSION['username'] = 'Gast';
+    $_SESSION['is_guest'] = true;
+    header("Location: dashboard.php");
+    exit;
+}
 
 // If user is already logged in, redirect to dashboard
 if (isset($_SESSION['user_id'])) {
@@ -49,6 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .guest-access {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+    </style>
 </head>
 <body>
 <div class="container mt-5">
@@ -78,7 +98,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <button type="submit" class="btn btn-primary">Login</button>
                     </form>
-                    <p class="mt-3">Noch nicht registriert? <a href="register.php">Hier registrieren</a></p>
+                    
+                    <?php if (!$registration_disabled): ?>
+                        <p class="mt-3">Noch nicht registriert? <a href="register.php">Hier registrieren</a></p>
+                    <?php else: ?>
+                        <div class="alert alert-info mt-3">
+                            <i class="bi bi-info-circle"></i> Die Registrierung ist derzeit deaktiviert.
+                        </div>
+                    <?php endif; ?>
+                    
+                    <div class="guest-access text-center">
+                        <p>Kein Account? Testen Sie unsere Plattform mit eingeschränktem Zugriff.</p>
+                        <a href="login.php?guest=1" class="btn btn-outline-secondary">
+                            <i class="bi bi-person"></i> Als Gast fortfahren
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

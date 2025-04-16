@@ -3,6 +3,20 @@
 require_once 'dashboard_header.php';
 ?>
 
+<?php if ($is_guest): ?>
+<!-- Guest User Banner -->
+<div class="alert alert-warning">
+    <h5><i class="bi bi-person"></i> Gast-Modus</h5>
+    <p>Sie sind als Gast angemeldet und haben eingeschränkten Zugriff:</p>
+    <ul>
+        <li>Anzeige der Job-Einträge der letzten 7 Tage</li>
+        <li>Keine Möglichkeit, Jobs zu pinnen oder Notizen zu erstellen</li>
+        <li>Zugriff auf Statistiken und Analysen</li>
+    </ul>
+    <p>Für vollen Zugriff <a href="register.php" class="alert-link">registrieren</a> Sie sich bitte oder <a href="login.php" class="alert-link">melden</a> Sie sich mit Ihrem Konto an.</p>
+</div>
+<?php endif; ?>
+
 <!-- Tabs Container -->
 <div class="tabs-section">
     <!-- Filter Tabs -->
@@ -15,7 +29,8 @@ require_once 'dashboard_header.php';
             </a>
         </li>
         
-        <!-- Pinned Jobs Tab -->
+        <?php if (!$is_guest): ?>
+        <!-- Pinned Jobs Tab - only for registered users -->
         <li class="nav-item" role="presentation">
             <a class="nav-link <?php echo isset($_GET['pinned']) ? 'active' : ''; ?>" 
                href="dashboard.php?pinned=1" role="tab">
@@ -23,7 +38,7 @@ require_once 'dashboard_header.php';
             </a>
         </li>
         
-        <!-- Search Tab -->
+        <!-- Search Tab - only for registered users -->
         <li class="nav-item" role="presentation">
             <a class="nav-link <?php echo isset($_GET['search']) ? 'active' : ''; ?>" 
                href="#searchTab" data-bs-toggle="tab" role="tab" id="searchTabBtn">
@@ -31,7 +46,7 @@ require_once 'dashboard_header.php';
             </a>
         </li>
         
-        <!-- User Filters -->
+        <!-- User Filters - only for registered users -->
         <?php foreach ($filters as $filter): ?>
             <li class="nav-item" role="presentation">
                 <a class="nav-link <?php echo isset($_GET['filter']) && $_GET['filter'] == $filter['id'] ? 'active' : ''; ?>" 
@@ -53,14 +68,14 @@ require_once 'dashboard_header.php';
             </li>
         <?php endforeach; ?>
         
-        <!-- Add New Filter Tab -->
+        <!-- Add New Filter Tab - only for registered users -->
         <li class="nav-item" role="presentation">
             <a class="nav-link" href="#newFilterTab" data-bs-toggle="tab" role="tab" id="newFilterTabBtn">
                 <i class="bi bi-plus-circle"></i> Neuer Filter
             </a>
         </li>
         
-        <!-- Edit Filter Tab (hidden, activated via JavaScript) -->
+        <!-- Edit Filter Tab (hidden, activated via JavaScript) - only for registered users -->
         <?php if ($edit_filter): ?>
             <li class="nav-item" role="presentation" id="editFilterTab">
                 <a class="nav-link active" href="#editFilter" data-bs-toggle="tab" role="tab">
@@ -68,9 +83,11 @@ require_once 'dashboard_header.php';
                 </a>
             </li>
         <?php endif; ?>
+        <?php endif; ?>
     </ul>
     
-    <!-- Tab Content -->
+    <?php if (!$is_guest): ?>
+    <!-- Tab Content - only for registered users -->
     <div class="tab-content" id="filterTabsContent">
         <!-- Search Tab Content -->
         <div class="tab-pane fade <?php echo isset($_GET['search']) ? 'show active' : ''; ?>" id="searchTab" role="tabpanel">
@@ -237,6 +254,7 @@ require_once 'dashboard_header.php';
             </div>
         <?php endif; ?>
     </div>
+    <?php endif; ?>
 </div>
 
 <!-- Display success message if any -->
@@ -248,7 +266,8 @@ require_once 'dashboard_header.php';
     <?php unset($_SESSION['success_message']); ?>
 <?php endif; ?>
 
-<!-- Active Filter Info -->
+<?php if (!$is_guest): ?>
+<!-- Active Filter Info - only for registered users -->
 <?php if ($active_filter): ?>
     <div class="alert alert-info mt-3">
         <strong>Aktiver Filter:</strong> <?php echo htmlspecialchars($active_filter['name']); ?>
@@ -305,6 +324,13 @@ require_once 'dashboard_header.php';
         <small class="text-muted d-block">Gepinnte Jobs werden immer angezeigt, unabhängig vom Datum.</small>
     </div>
 <?php endif; ?>
+<?php else: ?>
+<!-- Guest Time Info -->
+<div class="alert alert-light mt-3">
+    <i class="bi bi-calendar-date"></i> <strong><?php echo $time_info; ?></strong>
+    <small class="text-muted d-block">Als Gast sehen Sie nur Jobs der letzten 7 Tage.</small>
+</div>
+<?php endif; ?>
 
 <!-- Jobs Container -->
 <div class="jobs-container">
@@ -322,8 +348,10 @@ require_once 'dashboard_header.php';
                         <thead class="table-light">
                             <tr>
                                 <th class="pin-status-column">Gepinnt</th> <!-- Hidden pin status column for sorting -->
-                                <th style="width: 50px;"></th> <!-- Pin button column -->
-                                <th style="width: 50px;"></th> <!-- Notes column -->
+                                <?php if (!$is_guest): ?>
+                                <th style="width: 50px;"></th> <!-- Pin button column - only for registered users -->
+                                <th style="width: 50px;"></th> <!-- Notes column - only for registered users -->
+                                <?php endif; ?>
                                 <th>Basis-Titel</th>
                                 <th>Klassifikation</th>
                                 <th>Erstellt am</th>
@@ -333,11 +361,12 @@ require_once 'dashboard_header.php';
                         <tbody>
                             <?php foreach ($jobs as $job): ?>
                                 <?php 
-                                $is_pinned = in_array($job['id'], $pinned_job_ids) || array_intersect(explode(',', $job['grouped_ids']), $pinned_job_ids);
-                                $has_note = isset($job_notes[$job['id']]) || array_intersect(explode(',', $job['grouped_ids']), array_keys($job_notes));
+                                $is_pinned = in_array($job['id'], $pinned_job_ids) || array_intersect(explode(',', $job['grouped_ids'] ?? ''), $pinned_job_ids);
+                                $has_note = isset($job_notes[$job['id']]) || array_intersect(explode(',', $job['grouped_ids'] ?? ''), array_keys($job_notes));
                                 ?>
                                 <tr class="<?php echo $is_pinned ? 'pinned' : ''; ?>" data-job-id="<?php echo $job['id']; ?>">
                                     <td class="pin-status-column"> <?php echo $is_pinned ? '1' : '0'; ?> </td>
+                                    <?php if (!$is_guest): ?>
                                     <td class="text-center">
                                         <form method="POST" class="pin-form">
                                             <input type="hidden" name="job_id" value="<?php echo $job['id']; ?>">
@@ -352,6 +381,7 @@ require_once 'dashboard_header.php';
                                           data-job-id="<?php echo $job['id']; ?>"
                                           data-job-title="<?php echo htmlspecialchars($job['base_title']); ?>"></i>
                                     </td>
+                                    <?php endif; ?>
                                     <td><?php echo htmlspecialchars($job['base_title'] ?? 'N/A'); ?></td>
                                     <td><?php echo htmlspecialchars($job['group_classification'] ?? 'N/A'); ?></td>
                                     <td data-sort="<?php echo strtotime($job['created_at'] ?? 0); ?>">

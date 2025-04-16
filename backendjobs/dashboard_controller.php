@@ -10,14 +10,15 @@ $jobs = [];
 $search_mode = 'soft'; // Default search mode: 'soft' (view only) or 'full' (all fields)
 $custom_date_from = null;
 $custom_date_to = null;
+$is_guest = isset($_SESSION['is_guest']) && $_SESSION['is_guest'] === true;
 
-// Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Handle form submissions - guests can't modify data
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_guest) {
     handlePostRequests($pdo);
 }
 
 // Handle AJAX request to get note
-if (isset($_GET['get_note']) && isset($_GET['job_id'])) {
+if (isset($_GET['get_note']) && isset($_GET['job_id']) && !$is_guest) {
     $job_id = (int)$_GET['job_id'];
     $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND job_id = ?");
     $stmt->execute([$_SESSION['user_id'], $job_id]);
@@ -27,11 +28,18 @@ if (isset($_GET['get_note']) && isset($_GET['job_id'])) {
     exit;
 }
 
-// Get user data
-$filters = getUserFilters($pdo);
-$time_frame = getUserTimeFrame($pdo);
-$pinned_job_ids = getUserPinnedJobs($pdo);
-$job_notes = getUserJobNotes($pdo);
+// Get user data - for guests, use empty arrays/default values
+if (!$is_guest) {
+    $filters = getUserFilters($pdo);
+    $time_frame = getUserTimeFrame($pdo);
+    $pinned_job_ids = getUserPinnedJobs($pdo);
+    $job_notes = getUserJobNotes($pdo);
+} else {
+    $filters = [];
+    $time_frame = 7; // Default to 7 days for guests
+    $pinned_job_ids = [];
+    $job_notes = [];
+}
 
 // Determine which filter to use
 if (isset($_GET['filter']) && $_GET['filter'] !== 'search') {

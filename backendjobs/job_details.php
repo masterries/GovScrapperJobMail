@@ -9,6 +9,9 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once './db_connect.php'; // Include your database connection
 
+// Check if user is a guest
+$is_guest = isset($_SESSION['is_guest']) && $_SESSION['is_guest'] === true;
+
 // Check if a group_id is provided
 if (!isset($_GET['group_id']) || !is_numeric($_GET['group_id'])) {
     header("Location: dashboard.php");
@@ -47,21 +50,26 @@ if (!empty($grouped_ids)) {
     error_log("No grouped_ids found for group ID {$group_id}");
 }
 
-// Get user's pinned jobs
-$stmt = $pdo->prepare("SELECT job_id FROM pinned_jobs WHERE user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$pinned_job_ids = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'job_id');
+// Get user's pinned jobs and notes - only for registered users
+if (!$is_guest) {
+    $stmt = $pdo->prepare("SELECT job_id FROM pinned_jobs WHERE user_id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $pinned_job_ids = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'job_id');
 
-// Get user's job notes
-$stmt = $pdo->prepare("SELECT job_id, note FROM job_notes WHERE user_id = ?");
-$stmt->execute([$_SESSION['user_id']]);
-$job_notes = [];
-while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-    $job_notes[$row['job_id']] = $row['note'];
+    $stmt = $pdo->prepare("SELECT job_id, note FROM job_notes WHERE user_id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $job_notes = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $job_notes[$row['job_id']] = $row['note'];
+    }
+} else {
+    // For guests, empty arrays
+    $pinned_job_ids = [];
+    $job_notes = [];
 }
 
-// Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Handle form submissions - only for registered users
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_guest) {
     // Handle job pin/unpin
     if (isset($_POST['toggle_pin'])) {
         $job_id = (int)$_POST['job_id'];
@@ -118,8 +126,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// AJAX request to get note
-if (isset($_GET['get_note']) && isset($_GET['job_id'])) {
+// AJAX request to get note - only for registered users
+if (isset($_GET['get_note']) && isset($_GET['job_id']) && !$is_guest) {
     $job_id = (int)$_GET['job_id'];
     $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND job_id = ?");
     $stmt->execute([$_SESSION['user_id'], $job_id]);
@@ -240,6 +248,7 @@ $time_frame = 0;
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h6 class="mb-0"><?php echo htmlspecialchars($job['title'] ?? 'N/A'); ?></h6>
                             <div>
+                                <?php if (!$is_guest): ?>
                                 <button type="button" class="btn btn-sm toggle-pin-btn" style="background: none; border: none;" data-job-id="<?php echo $job['id']; ?>">
                                     <i class="bi <?php echo $is_pinned ? 'bi-pin-fill text-warning' : 'bi-pin'; ?> fs-5"></i>
                                 </button>
@@ -247,6 +256,7 @@ $time_frame = 0;
                                   data-bs-toggle="modal" data-bs-target="#noteModal" 
                                   data-job-id="<?php echo $job['id']; ?>"
                                   data-job-title="<?php echo htmlspecialchars($job['title'] ?? 'N/A'); ?>"></i>
+                                <?php endif; ?>
                             </div>
                         </div>
                         <div class="card-body">
@@ -360,48 +370,5 @@ $time_frame = 0;
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="job_details_scripts.js"></script>
-</body>
-</html>jobId);
-                modal.find('#noteJobTitle').text(jobTitle);
-                
-                // Load existing note if any
-                $.getJSON('job_details.php?group_id=<?php echo $group_id; ?>&get_note=1&job_id=' + jobId, function(data) {
-                    modal.find('#noteText').val(data.note);
-                });
-            });
-            
-            // Save note
-            $('#saveNoteBtn').click(function() {
-                const jobId = $('#noteJobId').val();
-                const note = $('#noteText').val();
-                
-                $.ajax({
-                    type: "POST",
-                    url: "job_details.php?group_id=<?php echo $group_id; ?>",
-                    data: {
-                        job_id: jobId,
-                        note: note,
-                        save_note: 1,
-                        ajax: 1
-                    },
-                    dataType: "json",
-                    success: function(response) {
-                        if (response.success) {
-                            // Update the note icon
-                            const noteIcon = $('[data-job-id="' + jobId + '"].note-icon');
-                            if (note.trim() !== '') {
-                                noteIcon.addClass('has-note');
-                            } else {
-                                noteIcon.removeClass('has-note');
-                            }
-                            
-                            // Close the modal
-                            $('#noteModal').modal('hide');
-                        }
-                    }
-                });
-            });
-        });
-    </script>
 </body>
 </html>

@@ -2,17 +2,35 @@
 function initDataTable() {
     // Check if DataTable is already initialized
     if (!$.fn.DataTable.isDataTable('#jobsTable')) {
+        // Determine if user is guest by checking table structure
+        const isGuest = $('#jobsTable thead tr th').length < 7;
+        
+        // Configure columnDefs based on user type
+        let columnDefs = [];
+        
+        if (isGuest) {
+            // Guest view (no pin/note columns)
+            columnDefs = [
+                { "orderable": false, "targets": [3] }, // Disable sorting for actions column
+                { "type": "num", "targets": [2] },     // Date column is numeric for sorting
+                { "visible": false, "targets": [0] }   // Hide the pin status column (used only for sorting)
+            ];
+        } else {
+            // Regular user view (with pin/note columns)
+            columnDefs = [
+                { "orderable": false, "targets": [1, 2, 6] }, // Disable sorting for pin, note and actions columns
+                { "type": "num", "targets": [5] },            // Date column is numeric for sorting
+                { "visible": false, "targets": [0] }          // Hide the pin status column (used only for sorting)
+            ];
+        }
+        
         $('#jobsTable').DataTable({
-            "order": [[0, "desc"], [5, "desc"]], // Sort by is_pinned first, then created_at
+            "order": [[0, "desc"], [isGuest ? 2 : 5, "desc"]], // Sort by is_pinned first, then created_at
             "orderFixed": { "pre": [0, "desc"] }, // Always keep pinned jobs on top regardless of user sorting
             "language": {
                 "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/de-DE.json"
             },
-            "columnDefs": [
-                { "orderable": false, "targets": [1, 2, 6] }, // Disable sorting for pin, note and actions columns
-                { "type": "num", "targets": [5] }, // Date column is numeric for sorting
-                { "visible": false, "targets": [0] } // Hide the pin status column (used only for sorting)
-            ],
+            "columnDefs": columnDefs,
             "pageLength": 25, // Show 25 entries per page
             "stateSave": true // Save table state (sorting, pagination)
         });
