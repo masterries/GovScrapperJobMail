@@ -15,10 +15,15 @@ def load_json(file_name):
         return None
 
 def search_keywords(job, keywords):
-    job_text = ' '.join(str(value).lower() for value in job.values())
+    # Only search in specific fields: Title, Education Level, Job Category, Status, Ministry
+    relevant_fields = ['Title', 'Education Level', 'Job Category', 'Status', 'Ministry']
+    
+    # Create a text string containing only the relevant fields
+    job_text = ' '.join(str(job.get(field, '')).lower() for field in relevant_fields)
+    
     for keyword in keywords:
         for lang in ['en', 'fr', 'de']:
-            if re.search(r'\b' + re.escape(keyword[lang].lower()) + r'\b', job_text):
+            if keyword.get(lang) and re.search(r'\b' + re.escape(keyword[lang].lower()) + r'\b', job_text):
                 return True
     return False
 
