@@ -1,5 +1,21 @@
 <?php
+// Configuration flag to disable registration - should match login.php
+$registration_disabled = true; // Setze auf false, um die Registrierung zu aktivieren
+
 session_start();
+
+// If registration is disabled, redirect to login page
+if ($registration_disabled) {
+    header("Location: login.php");
+    exit;
+}
+
+// If user is already logged in, redirect to dashboard
+if (isset($_SESSION['user_id'])) {
+    header("Location: dashboard.php");
+    exit;
+}
+
 require_once './db_connect.php'; // Include your database connection
 
 $errors = [];

@@ -110,10 +110,13 @@
 </head>
 <body>
     <div class="container-fluid mt-4">
-        <!-- Header with user info and logout button -->
+        <!-- Header with user info, statistics link and logout button -->
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h4>Job Dashboard - <?php echo htmlspecialchars($_SESSION['username']); ?></h4>
             <div>
+                <a href="job_statistics.php" class="btn btn-primary me-2">
+                    <i class="bi bi-bar-chart-fill"></i> Statistiken
+                </a>
                 <form method="POST" class="d-inline-block me-2">
                     <div class="input-group">
                         <input type="number" name="time_frame" class="form-control" value="<?php echo $time_frame; ?>" min="1" max="365" style="width: 80px;">
