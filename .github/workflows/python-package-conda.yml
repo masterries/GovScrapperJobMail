@@ -50,9 +50,9 @@ jobs:
       
             # Trigger the database import workflow
             
-      - name: Trigger DB Import Workflow
-        if: success()
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.WORKFLOW_PAT }}
-          event-type: trigger-db-import
+      #- name: Trigger DB Import Workflow
+      #  if: success()
+      #  uses: peter-evans/repository-dispatch@v2
+      #  with:
+      #    token: ${{ secrets.WORKFLOW_PAT }}
+      #    event-type: trigger-db-import
