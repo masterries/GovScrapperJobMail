@@ -81,62 +81,116 @@ usort($jobs, function($a, $b) use ($pinnedIds) {
     return $aPinned ? -1 : 1;
 });
 ?>
-<h2>Suchergebnisse</h2>
-<p><?= count($jobs) ?> Treffer für "<?= htmlspecialchars($q) ?>" (<?= htmlspecialchars($mode) ?>)</p>
-<!-- Sortierbare Tabelle mit DataTables -->
-<table id="jobsTable" class="table table-striped table-bordered">
-  <thead>
-    <tr>
-      <th>Pin</th>
-      <th>Titel</th>
-      <th>Datum</th>
-      <th>Kategorie</th>
-      <th>Ministerium</th>
-      <th>Status</th>
-      <th>Kommentar</th>
-    </tr>
-  </thead>
-  <tbody>
-  <?php foreach ($jobs as $job): ?>
-    <tr>
-      <td class="text-center">
-        <a href="#" class="pin-link" data-id="<?= $job['id'] ?>">
-          <i class="bi bi-pin<?= in_array($job['id'], $pinnedIds) ? '-fill text-warning' : '' ?>"></i>
-        </a>
-      </td>
-      <td><a href="job_view.php?group_key=<?= urlencode($job['group_key']) ?>"><?= htmlspecialchars($job['title']) ?></a></td>
-      <td><?= htmlspecialchars($job['post_date']) ?></td>
-      <td><?= htmlspecialchars($job['job_category']) ?></td>
-      <td><?= htmlspecialchars($job['ministry']) ?></td>
-      <td><?= htmlspecialchars($job['status']) ?></td>
-      <td class="text-center">
-        <a href="#" class="comment-link" data-id="<?= $job['id'] ?>">
-          <i class="bi bi-chat-text"></i>
-        </a>
-      </td>
-    </tr>
-  <?php endforeach ?>
-  </tbody>
-</table>
+
+<!-- Suchformular (kompakt) -->
+<div class="card mb-4">
+  <div class="card-body bg-light p-3">
+    <form method="get" action="results.php" class="row row-cols-lg-auto g-3 align-items-center">
+      <div class="col-12 col-sm-5">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" class="form-control" placeholder="Suchbegriff" required>
+        </div>
+      </div>
+      <div class="col-12 col-sm-3">
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="mode" id="modeSoft" value="soft" <?= ($mode === 'soft' ? 'checked' : '') ?>>
+          <label class="form-check-label" for="modeSoft">Soft</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="mode" id="modeFull" value="full" <?= ($mode === 'full' ? 'checked' : '') ?>>
+          <label class="form-check-label" for="modeFull">Full</label>
+        </div>
+      </div>
+      <div class="col-12 col-sm-2">
+        <input type="hidden" name="filter_id" value="<?= $filterId ?>">
+        <button type="submit" class="btn btn-primary w-100">Suchen</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Ergebnisbereich -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">
+      <i class="bi bi-list-ul me-2"></i>
+      <?= count($jobs) ?> Treffer für "<?= htmlspecialchars($q) ?>" <?= $filterId ? '(mit Filter)' : '' ?>
+    </h5>
+    <span class="badge bg-<?= $mode === 'full' ? 'primary' : 'info' ?>">
+      <?= $mode === 'full' ? 'Fullsearch' : 'Softsearch' ?>
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <!-- Sortierbare Tabelle mit DataTables -->
+    <table id="jobsTable" class="table table-striped table-hover table-bordered mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width: 50px" class="text-center">Pin</th>
+          <th>Titel</th>
+          <th style="width: 120px">Datum</th>
+          <th style="width: 140px">Kategorie</th>
+          <th style="width: 140px">Ministerium</th>
+          <th style="width: 100px">Status</th>
+          <th style="width: 50px" class="text-center">Notiz</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php foreach ($jobs as $job): ?>
+        <tr class="<?= in_array($job['id'], $pinnedIds) ? 'table-warning' : '' ?>">
+          <td class="text-center">
+            <a href="#" class="pin-link" data-id="<?= $job['id'] ?>" data-bs-toggle="tooltip" title="<?= in_array($job['id'], $pinnedIds) ? 'Job entpinnen' : 'Job pinnen' ?>">
+              <i class="bi bi-pin<?= in_array($job['id'], $pinnedIds) ? '-fill text-warning' : '' ?>"></i>
+            </a>
+          </td>
+          <td>
+            <a href="job_view.php?group_key=<?= urlencode($job['group_key']) ?>" class="text-decoration-none fw-medium">
+              <?= htmlspecialchars($job['title']) ?>
+            </a>
+          </td>
+          <td><?= htmlspecialchars($job['post_date']) ?></td>
+          <td><span class="badge bg-light text-dark"><?= htmlspecialchars($job['job_category']) ?></span></td>
+          <td><?= htmlspecialchars($job['ministry']) ?></td>
+          <td><span class="badge bg-secondary"><?= htmlspecialchars($job['status']) ?></span></td>
+          <td class="text-center">
+            <a href="#" class="comment-link" data-id="<?= $job['id'] ?>" data-bs-toggle="tooltip" title="Notizen bearbeiten">
+              <i class="bi bi-chat-text"></i>
+            </a>
+          </td>
+        </tr>
+      <?php endforeach ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Zurück zur Suche -->
+<div class="mt-3">
+  <a href="index.php" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-2"></i> Zurück zur Suche
+  </a>
+</div>
 
 <!-- Comment Modal -->
 <div class="modal fade" id="commentModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Kommentare</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h5 class="modal-title"><i class="bi bi-chat-text me-2"></i>Notizen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
       </div>
       <div class="modal-body">
-        <div id="commentHistory"></div>
+        <div id="commentHistory" class="mb-3 p-3 bg-light rounded" style="max-height: 300px; overflow-y: auto;"></div>
         <div class="mb-3">
-          <label for="newComment" class="form-label">Neuer Kommentar</label>
-          <textarea id="newComment" class="form-control" rows="3"></textarea>
+          <label for="newComment" class="form-label">Neue Notiz</label>
+          <textarea id="newComment" class="form-control" rows="3" placeholder="Notiz eingeben..."></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" id="saveComment" class="btn btn-primary">Speichern</button>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+        <button type="button" id="saveComment" class="btn btn-primary">
+          <i class="bi bi-save me-1"></i> Speichern
+        </button>
       </div>
     </div>
   </div>
@@ -147,6 +201,7 @@ usort($jobs, function($a, $b) use ($pinnedIds) {
 <script>
 $(document).ready(function(){
   var currentCommentId;
+  
   // Pin toggling
   $('.pin-link').click(function(e){
     e.preventDefault();
@@ -154,8 +209,12 @@ $(document).ready(function(){
     var icon = $(this).find('i');
     $.post('/pins/toggle.php', { type: 'job', key: jobId }, function(){
       icon.toggleClass('bi-pin bi-pin-fill text-warning');
+      // Zeile hervorheben/zurücksetzen
+      var row = icon.closest('tr');
+      row.toggleClass('table-warning');
     });
   });
+  
   // Comment modal
   $('.comment-link').click(function(e){
     e.preventDefault();
@@ -163,18 +222,29 @@ $(document).ready(function(){
     $('#commentModal').modal('show');
     loadComments();
   });
+  
   function loadComments(){
-    $('#commentHistory').html('Lade...');
+    $('#commentHistory').html('<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status"></div></div>');
     $.get('/notes/list.php', { type: 'job', key: currentCommentId }, function(html){
       $('#commentHistory').html(html);
     });
   }
+  
   $('#saveComment').click(function(){
     var txt = $('#newComment').val().trim();
     if(!txt) return;
+    
+    // Disable button and show spinner
+    var btn = $(this);
+    var originalHtml = btn.html();
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Speichern...');
+    
     $.post('/notes/save.php', { type: 'job', key: currentCommentId, note: txt }, function(){
       $('#newComment').val('');
       loadComments();
+      
+      // Re-enable button
+      btn.prop('disabled', false).html(originalHtml);
     });
   });
 });
