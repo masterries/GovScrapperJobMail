@@ -47,9 +47,14 @@ try {
  */
 function db_query($sql, $params = []) {
     global $pdo;
-    
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    
-    return $stmt;
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        return $stmt;
+    } catch (PDOException $e) {
+        // Debug-Ausgabe bei Fehler
+        echo '<h2>SQL ERROR:</h2><pre>' . htmlspecialchars($sql, ENT_QUOTES, 'UTF-8') . '</pre>';
+        echo '<h2>PARAMS:</h2><pre>' . htmlspecialchars(print_r($params, true), ENT_QUOTES, 'UTF-8') . '</pre>';
+        throw $e;
+    }
 }
