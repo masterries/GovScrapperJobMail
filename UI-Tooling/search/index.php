@@ -69,6 +69,31 @@ $filters = $stmt->fetchAll();
             </div>
           </div>
           
+          <!-- Neue Suchtabellenauswahl -->
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Suchtabelle</label>
+              <div class="d-flex">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="search_table" id="tableUnique" value="unique" 
+                         <?= (($_GET['search_table'] ?? 'unique') === 'unique' ? 'checked' : '') ?>>
+                  <label class="form-check-label" for="tableUnique">
+                    <i class="bi bi-grid me-1"></i> Unique Jobs
+                    <small class="d-block text-muted">Zusammengefasste Jobs</small>
+                  </label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="radio" name="search_table" id="tableAll" value="all" 
+                         <?= (($_GET['search_table'] ?? '') === 'all' ? 'checked' : '') ?>>
+                  <label class="form-check-label" for="tableAll">
+                    <i class="bi bi-table me-1"></i> Alle Jobs
+                    <small class="d-block text-muted">Inklusive Historien</small>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div class="d-grid">
             <button type="submit" class="btn btn-lg btn-primary">
               <i class="bi bi-search me-2"></i> Jobs finden

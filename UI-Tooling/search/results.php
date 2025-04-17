@@ -4,10 +4,21 @@ require_once __DIR__ . '/../includes/header.php';
 $q = trim($_GET['q'] ?? '');
 $mode = ($_GET['mode'] ?? 'soft') === 'full' ? 'full' : 'soft';
 $filterId = intval($_GET['filter_id'] ?? 0);
+$searchTable = ($_GET['search_table'] ?? 'unique') === 'all' ? 'jobs' : 'unique_jobs';
 
 // Basis-Query
-$sql = "SELECT * FROM unique_jobs WHERE 1=1";
+$sql = "SELECT * FROM {$searchTable} WHERE 1=1";
 $params = [];
+
+// Definiere die Suchfelder je nach ausgewählter Tabelle
+if ($searchTable === 'unique_jobs') {
+    $searchFields = ['title', 'link', 'group_classification', 'base_title', 'job_category', 'ministry', 'missions', 'organization', 'status'];
+} else { // jobs Tabelle
+    $searchFields = ['title', 'link', 'group_classification', 'job_category', 'ministry', 'missions', 'organization', 'status'];
+}
+if ($mode === 'full') {
+    $searchFields[] = 'full_description';
+}
 
 // Suche
 if ($q !== '') {
@@ -15,12 +26,8 @@ if ($q !== '') {
     $clauses = [];
     foreach ($terms as $i => $term) {
         $like = "%{$term}%";
-        $fields = ['title','link','group_classification','base_title','job_category','ministry','missions','organization','status'];
-        if ($mode === 'full') {
-            $fields[] = 'full_description';
-        }
         $sub = [];
-        foreach ($fields as $fIdx => $f) {
+        foreach ($searchFields as $fIdx => $f) {
             $param = "t{$i}_{$fIdx}";
             $sub[] = "{$f} LIKE :{$param}";
             $params[$param] = $like;
@@ -50,11 +57,18 @@ if ($filterId) {
             foreach ($kw as $j => $k) {
                 $like = "%{$k}%";
                 $fmode = $fs['mode'];
-                // wie Suche, aber für jeden Begriff
+                // Definiere die Suchfelder auch für Filter je nach Tabelle
+                if ($searchTable === 'unique_jobs') {
+                    $filterFields = ['title', 'link', 'group_classification', 'base_title', 'job_category', 'ministry', 'missions', 'organization', 'status'];
+                } else { // jobs Tabelle
+                    $filterFields = ['title', 'link', 'group_classification', 'job_category', 'ministry', 'missions', 'organization', 'status'];
+                }
+                if ($fmode === 'full') {
+                    $filterFields[] = 'full_description';
+                }
+                
                 $sub2 = [];
-                $fields = ['title','link','group_classification','base_title','job_category','ministry','missions','organization','status'];
-                if ($fmode === 'full') $fields[] = 'full_description';
-                foreach ($fields as $fIdx2 => $f2) {
+                foreach ($filterFields as $fIdx2 => $f2) {
                     $param = "fkj{$j}_{$fIdx2}";
                     $sub2[] = "{$f2} LIKE :{$param}";
                     $params[$param] = $like;
@@ -71,7 +85,12 @@ $stmt = db_query($sql, $params);
 $jobs = $stmt->fetchAll();
 
 // Pinned-Jobs-IDs aus user_pins für Suchergebnisse
-$pinnedIds = db_query('SELECT target_key FROM user_pins WHERE user_id = :u AND target_type = "job"', ['u'=>$_SESSION['user_id']])->fetchAll(PDO::FETCH_COLUMN);
+if ($searchTable === 'unique_jobs') {
+    $pinnedIds = db_query('SELECT target_key FROM user_pins WHERE user_id = :u AND target_type = "job"', ['u'=>$_SESSION['user_id']])->fetchAll(PDO::FETCH_COLUMN);
+} else {
+    // Für die jobs Tabelle
+    $pinnedIds = db_query('SELECT target_key FROM user_pins WHERE user_id = :u AND target_type = "job"', ['u'=>$_SESSION['user_id']])->fetchAll(PDO::FETCH_COLUMN);
+}
 
 // Sortiere: zuerst gepinnt, dann übrige
 usort($jobs, function($a, $b) use ($pinnedIds) {
@@ -86,13 +105,13 @@ usort($jobs, function($a, $b) use ($pinnedIds) {
 <div class="card mb-4">
   <div class="card-body bg-light p-3">
     <form method="get" action="results.php" class="row row-cols-lg-auto g-3 align-items-center">
-      <div class="col-12 col-sm-5">
+      <div class="col-12 col-sm-4">
         <div class="input-group">
           <span class="input-group-text"><i class="bi bi-search"></i></span>
           <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" class="form-control" placeholder="Suchbegriff" required>
         </div>
       </div>
-      <div class="col-12 col-sm-3">
+      <div class="col-12 col-sm-2">
         <div class="form-check form-check-inline">
           <input class="form-check-input" type="radio" name="mode" id="modeSoft" value="soft" <?= ($mode === 'soft' ? 'checked' : '') ?>>
           <label class="form-check-label" for="modeSoft">Soft</label>
@@ -100,6 +119,16 @@ usort($jobs, function($a, $b) use ($pinnedIds) {
         <div class="form-check form-check-inline">
           <input class="form-check-input" type="radio" name="mode" id="modeFull" value="full" <?= ($mode === 'full' ? 'checked' : '') ?>>
           <label class="form-check-label" for="modeFull">Full</label>
+        </div>
+      </div>
+      <div class="col-12 col-sm-3">
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="search_table" id="tableUnique" value="unique" <?= ($searchTable === 'unique_jobs' ? 'checked' : '') ?>>
+          <label class="form-check-label" for="tableUnique">Unique</label>
+        </div>
+        <div class="form-check form-check-inline">
+          <input class="form-check-input" type="radio" name="search_table" id="tableAll" value="all" <?= ($searchTable === 'jobs' ? 'checked' : '') ?>>
+          <label class="form-check-label" for="tableAll">All</label>
         </div>
       </div>
       <div class="col-12 col-sm-2">
@@ -117,9 +146,14 @@ usort($jobs, function($a, $b) use ($pinnedIds) {
       <i class="bi bi-list-ul me-2"></i>
       <?= count($jobs) ?> Treffer für "<?= htmlspecialchars($q) ?>" <?= $filterId ? '(mit Filter)' : '' ?>
     </h5>
-    <span class="badge bg-<?= $mode === 'full' ? 'primary' : 'info' ?>">
-      <?= $mode === 'full' ? 'Fullsearch' : 'Softsearch' ?>
-    </span>
+    <div>
+      <span class="badge bg-<?= $mode === 'full' ? 'primary' : 'info' ?>">
+        <?= $mode === 'full' ? 'Fullsearch' : 'Softsearch' ?>
+      </span>
+      <span class="badge bg-<?= $searchTable === 'jobs' ? 'warning' : 'secondary' ?> ms-2">
+        <?= $searchTable === 'jobs' ? 'Alle Jobs' : 'Unique Jobs' ?>
+      </span>
+    </div>
   </div>
   <div class="card-body p-0">
     <!-- Sortierbare Tabelle mit DataTables -->
@@ -144,11 +178,20 @@ usort($jobs, function($a, $b) use ($pinnedIds) {
             </a>
           </td>
           <td>
+            <?php if ($searchTable === 'unique_jobs'): ?>
             <a href="job_view.php?group_key=<?= urlencode($job['group_key']) ?>" class="text-decoration-none fw-medium">
+            <?php else: ?>
+            <a href="job_view_single.php?job_id=<?= urlencode($job['id']) ?>" class="text-decoration-none fw-medium">
+            <?php endif; ?>
               <?= htmlspecialchars($job['title']) ?>
+              <?php if($searchTable === 'unique_jobs' && !empty($job['base_title']) && $job['base_title'] !== $job['title']): ?>
+                <div class="small text-muted">
+                  <?= htmlspecialchars($job['base_title']) ?>
+                </div>
+              <?php endif; ?>
             </a>
           </td>
-          <td><?= htmlspecialchars($job['post_date']) ?></td>
+          <td><?= htmlspecialchars($job['post_date'] ?? $job['created_at']) ?></td>
           <td><span class="badge bg-light text-dark"><?= htmlspecialchars($job['job_category']) ?></span></td>
           <td><?= htmlspecialchars($job['ministry']) ?></td>
           <td><span class="badge bg-secondary"><?= htmlspecialchars($job['status']) ?></span></td>
@@ -180,72 +223,66 @@ usort($jobs, function($a, $b) use ($pinnedIds) {
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
       </div>
       <div class="modal-body">
-        <div id="commentHistory" class="mb-3 p-3 bg-light rounded" style="max-height: 300px; overflow-y: auto;"></div>
-        <div class="mb-3">
-          <label for="newComment" class="form-label">Neue Notiz</label>
-          <textarea id="newComment" class="form-control" rows="3" placeholder="Notiz eingeben..."></textarea>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
-        <button type="button" id="saveComment" class="btn btn-primary">
-          <i class="bi bi-save me-1"></i> Speichern
-        </button>
       </div>
     </div>
   </div>
 </div>
 
-<?php require_once __DIR__ . '/../includes/footer.php';?>
-
+<!-- JavaScript für Kommentar-Modal und Pin-Funktionalität -->
 <script>
-$(document).ready(function(){
-  var currentCommentId;
-  
-  // Pin toggling
-  $('.pin-link').click(function(e){
+$(document).ready(function() {
+  // Comment-Modal mit dynamischen Daten füllen
+  $('.comment-link').click(function(e) {
     e.preventDefault();
     var jobId = $(this).data('id');
-    var icon = $(this).find('i');
-    $.post('/pins/toggle.php', { type: 'job', key: jobId }, function(){
-      icon.toggleClass('bi-pin bi-pin-fill text-warning');
-      // Zeile hervorheben/zurücksetzen
-      var row = icon.closest('tr');
-      row.toggleClass('table-warning');
-    });
-  });
-  
-  // Comment modal
-  $('.comment-link').click(function(e){
-    e.preventDefault();
-    currentCommentId = $(this).data('id');
-    $('#commentModal').modal('show');
-    loadComments();
-  });
-  
-  function loadComments(){
-    $('#commentHistory').html('<div class="d-flex justify-content-center"><div class="spinner-border text-primary" role="status"></div></div>');
-    $.get('/notes/list.php', { type: 'job', key: currentCommentId }, function(html){
-      $('#commentHistory').html(html);
-    });
-  }
-  
-  $('#saveComment').click(function(){
-    var txt = $('#newComment').val().trim();
-    if(!txt) return;
+    var modal = $('#commentModal');
     
-    // Disable button and show spinner
-    var btn = $(this);
-    var originalHtml = btn.html();
-    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Speichern...');
+    // Daten laden
+    modal.find('.modal-body').html('<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>');
+    modal.modal('show');
     
-    $.post('/notes/save.php', { type: 'job', key: currentCommentId, note: txt }, function(){
-      $('#newComment').val('');
-      loadComments();
+    // AJAX-Anfrage für Notizen
+    $.get('/notes/list.php', {type: 'job', key: jobId}, function(data) {
+      modal.find('.modal-body').html(data);
       
-      // Re-enable button
-      btn.prop('disabled', false).html(originalHtml);
+      // Formular-Handler
+      modal.find('form').on('submit', function(e) {
+        e.preventDefault();
+        var noteText = $('#note-text').val();
+        $.post('/notes/save.php', {type: 'job', key: jobId, note: noteText}, function() {
+          // Nach Speichern neu laden
+          location.reload();
+        });
+      });
+    });
+  });
+  
+  // Pin-Toggle-Funktionalität
+  $('.pin-link').click(function(e) {
+    e.preventDefault();
+    var link = $(this);
+    var id = link.data('id');
+    
+    $.post('/pins/toggle.php', {type: 'job', key: id}, function() {
+      var icon = link.find('i');
+      if (icon.hasClass('bi-pin')) {
+        icon.removeClass('bi-pin').addClass('bi-pin-fill text-warning');
+        link.parents('tr').addClass('table-warning');
+        link.attr('title', 'Job entpinnen');
+      } else {
+        icon.removeClass('bi-pin-fill text-warning').addClass('bi-pin');
+        link.parents('tr').removeClass('table-warning');
+        link.attr('title', 'Job pinnen');
+      }
+      
+      // Tooltip aktualisieren
+      var tooltip = bootstrap.Tooltip.getInstance(link[0]);
+      if (tooltip) {
+        tooltip.dispose();
+      }
+      new bootstrap.Tooltip(link[0]);
     });
   });
 });
 </script>
+<?php require_once __DIR__ . '/../includes/footer.php';?>
