@@ -40,14 +40,14 @@ if ($q !== '') {
 // Filter anwenden
 if ($filterId) {
     // Filter-Metadaten
-    $fs = db_query('SELECT date_from, date_to, mode FROM filter_sets WHERE id = :id AND user_id = :u', ['id'=>$filterId,'u'=>$_SESSION['user_id']])->fetch();
+    $fs = db_query('SELECT name, date_from, date_to, mode FROM filter_sets WHERE id = :id AND user_id = :u', ['id'=>$filterId,'u'=>$_SESSION['user_id']])->fetch();
     if ($fs) {
         if ($fs['date_from']) {
-            $sql .= ' AND created_at >= :df';
+            $sql .= ' AND (created_at >= :df OR created_at IS NULL)';
             $params['df'] = $fs['date_from'];
         }
         if ($fs['date_to']) {
-            $sql .= ' AND created_at <= :dt';
+            $sql .= ' AND (created_at <= :dt OR created_at IS NULL)';
             $params['dt'] = $fs['date_to'];
         }
         // Filter-Keywords
@@ -75,7 +75,10 @@ if ($filterId) {
                 }
                 $fkClauses[] = '(' . implode(' OR ', $sub2) . ')';
             }
-            $sql .= ' AND (' . implode(' AND ', $fkClauses) . ')';
+            
+            // Verbinde Keywords je nach Filtermodus: im Soft-Modus mit OR, sonst mit AND
+            $keywordOperator = ($fs['mode'] === 'soft') ? ' OR ' : ' AND ';
+            $sql .= ' AND (' . implode($keywordOperator, $fkClauses) . ')';
         }
     }
 }
@@ -155,6 +158,7 @@ usort($jobs, function($a, $b) use ($pinnedIds) {
       </span>
     </div>
   </div>
+  
   <div class="card-body p-0">
     <!-- Sortierbare Tabelle mit DataTables -->
     <table id="jobsTable" class="table table-striped table-hover table-bordered mb-0">

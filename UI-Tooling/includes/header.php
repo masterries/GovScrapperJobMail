@@ -45,6 +45,11 @@ if (!in_array($currentPage, ['login.php', 'register.php'])) {
           </a>
         </li>
         <li class="nav-item">
+          <a class="nav-link <?= $currentPage === 'recommendations.php' ? 'active' : '' ?>" href="/search/recommendations.php">
+            <i class="bi bi-lightbulb me-1"></i> Empfehlungen
+          </a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link <?= $currentPage === 'list.php' && strpos($_SERVER['PHP_SELF'], '/filters/') !== false ? 'active' : '' ?>" href="/filters/list.php">
             <i class="bi bi-funnel me-1"></i> Filter
           </a>
@@ -88,6 +93,8 @@ if (!in_array($currentPage, ['login.php', 'register.php'])) {
           elseif ($currentPage === 'results.php'):
             echo '<li class="breadcrumb-item"><a href="/search/index.php">Suche</a></li>';
             echo '<li class="breadcrumb-item active">Ergebnisse</li>';
+          elseif ($currentPage === 'recommendations.php'):
+            echo '<li class="breadcrumb-item active">Empfehlungen</li>';
           elseif ($currentPage === 'job_view.php'):
             echo '<li class="breadcrumb-item"><a href="/search/index.php">Suche</a></li>';
             echo '<li class="breadcrumb-item active">Job Details</li>';
