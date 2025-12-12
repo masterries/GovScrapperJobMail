@@ -1,0 +1,297 @@
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #6c757d;
+    --accent-color: #ffc107;
+    --success-color: #198754;
+    --info-color: #0dcaf0;
+    --light-bg: #f8f9fa;
+    --panel-bg: #ffffff;
+    --muted-text: #6c757d;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f3f6fb;
+    color: #1f2937;
+}
+
+.app-header {
+    background: linear-gradient(135deg, #0d6efd, #3f8cff);
+    color: #fff;
+    padding: 1rem 0;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0.4rem 1.2rem rgba(13, 110, 253, 0.35);
+}
+
+.app-header .app-logo {
+    font-weight: 700;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.app-header .user-section {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.time-frame-form {
+    display: flex;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    padding: 0.5rem;
+    backdrop-filter: blur(6px);
+}
+
+.time-frame-form .form-control {
+    border: none;
+    border-top-left-radius: 0.5rem;
+    border-bottom-left-radius: 0.5rem;
+    min-width: 6rem;
+}
+
+.time-frame-form .input-group-text {
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    border-top-right-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
+
+.app-header .action-buttons .btn {
+    border-radius: 999px;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+}
+
+.app-hero {
+    background: #fff;
+    border-radius: 1rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.06);
+    margin-top: -1rem;
+}
+
+.app-hero h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.app-hero .subtitle {
+    color: var(--muted-text);
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.metric-card {
+    background: #fff;
+    border-radius: 0.85rem;
+    padding: 1rem;
+    box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.metric-card .label {
+    color: var(--muted-text);
+    font-size: 0.95rem;
+}
+
+.metric-card .value {
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.metric-card .badge {
+    font-size: 0.75rem;
+}
+
+.panel {
+    background: var(--panel-bg);
+    border-radius: 1rem;
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.05);
+    padding: 1.25rem;
+    margin-top: 1.25rem;
+}
+
+.panel header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.panel header h3 {
+    margin: 0;
+    font-weight: 700;
+}
+
+.tabs-section .nav-tabs {
+    border-bottom: none;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.tabs-section .nav-tabs .nav-link {
+    border: 1px solid rgba(13, 110, 253, 0.15);
+    border-radius: 999px;
+    background: #fff;
+    color: #0d6efd;
+    padding: 0.5rem 1rem 0.5rem 0.85rem;
+    box-shadow: 0 0.35rem 0.9rem rgba(13, 110, 253, 0.08);
+    position: relative;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.tabs-section .nav-tabs .nav-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1.4rem rgba(13, 110, 253, 0.12);
+}
+
+.tabs-section .nav-tabs .nav-link.active {
+    background: linear-gradient(135deg, #0d6efd, #3f8cff);
+    color: #fff;
+}
+
+.tab-content {
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 1rem;
+    margin-top: 1rem;
+    padding: 1.25rem;
+    background: #fff;
+}
+
+.keyword-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.keyword-list li {
+    background-color: var(--light-bg);
+    padding: 5px 10px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.jobs-container {
+    margin-top: 1.5rem;
+}
+
+.job-card {
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.job-card:hover {
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.08);
+}
+
+.job-card.pinned {
+    border-color: var(--accent-color);
+    box-shadow: 0 0.75rem 1.5rem rgba(255, 193, 7, 0.2);
+}
+
+.job-card .card-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    background: rgba(13, 110, 253, 0.04);
+}
+
+.job-description {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.note-icon {
+    cursor: pointer;
+    color: var(--secondary-color);
+}
+
+.note-icon:hover {
+    color: #212529;
+}
+
+.note-icon.has-note {
+    color: var(--accent-color);
+}
+
+.pin-status-column {
+    display: none;
+}
+
+.debug-info {
+    background-color: var(--light-bg);
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    font-family: monospace;
+    font-size: 0.875rem;
+}
+
+.filter-actions {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    gap: 4px;
+}
+
+.edit-filter {
+    color: var(--primary-color);
+}
+
+.delete-filter {
+    color: #dc3545;
+}
+
+.table-card {
+    background: #fff;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+@media (max-width: 767.98px) {
+    .app-header .app-logo {
+        font-size: 1.25rem;
+    }
+
+    .time-frame-form {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .time-frame-form .input-group {
+        margin-bottom: 0.5rem;
+    }
+
+    .user-section {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .app-header .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .app-header .action-buttons .btn {
+        width: 100%;
+    }
+}
