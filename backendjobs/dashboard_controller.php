@@ -21,10 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_guest) {
 if (isset($_GET['get_note']) && isset($_GET['job_id']) && !$is_guest) {
     $jobIdColumn = getJobNotesJobIdColumn($pdo);
     $job_id = (int)$_GET['job_id'];
-    $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND {$jobIdColumn} = ?");
+    $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND target_type = 'job' AND {$jobIdColumn} = ?");
     $stmt->execute([$_SESSION['user_id'], $job_id]);
     $note = $stmt->fetchColumn();
-    
+
     echo json_encode(['note' => $note ?: '']);
     exit;
 }
@@ -302,19 +302,19 @@ function togglePinJob($pdo) {
 function saveJobNote($pdo) {
     $job_id = (int)$_POST['job_id'];
     $note = trim($_POST['note']);
-    
+
     // Check if note already exists
     $jobIdColumn = getJobNotesJobIdColumn($pdo);
-    $stmt = $pdo->prepare("SELECT id FROM job_notes WHERE user_id = ? AND {$jobIdColumn} = ?");
+    $stmt = $pdo->prepare("SELECT id FROM job_notes WHERE user_id = ? AND target_type = 'job' AND {$jobIdColumn} = ?");
     $stmt->execute([$_SESSION['user_id'], $job_id]);
 
     if ($stmt->rowCount() > 0) {
         // Update existing note
-        $stmt = $pdo->prepare("UPDATE job_notes SET note = ?, updated_at = NOW() WHERE user_id = ? AND {$jobIdColumn} = ?");
+        $stmt = $pdo->prepare("UPDATE job_notes SET note = ?, updated_at = NOW() WHERE user_id = ? AND target_type = 'job' AND {$jobIdColumn} = ?");
         $stmt->execute([$note, $_SESSION['user_id'], $job_id]);
     } else {
         // Insert new note
-        $stmt = $pdo->prepare("INSERT INTO job_notes (user_id, {$jobIdColumn}, note) VALUES (?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO job_notes (user_id, target_type, {$jobIdColumn}, note) VALUES (?, 'job', ?, ?)");
         $stmt->execute([$_SESSION['user_id'], $job_id, $note]);
     }
     
@@ -387,8 +387,8 @@ function getUserJobNotes($pdo) {
     $stmt = $pdo->prepare(
         "SELECT jn.{$jobIdColumn} AS job_id, jn.note
          FROM job_notes jn
-         LEFT JOIN unique_jobs uj ON jn.{$jobIdColumn} = uj.id OR FIND_IN_SET(jn.{$jobIdColumn}, uj.grouped_ids)
-         WHERE jn.user_id = ?"
+         LEFT JOIN unique_jobs uj ON CAST(jn.{$jobIdColumn} AS UNSIGNED) = uj.id OR FIND_IN_SET(jn.{$jobIdColumn}, uj.grouped_ids)
+         WHERE jn.user_id = ? AND jn.target_type = 'job'"
     );
     $stmt->execute([$_SESSION['user_id']]);
     $job_notes = [];
@@ -402,38 +402,8 @@ function getUserJobNotes($pdo) {
  * Resolve the column name used for job IDs in the job_notes table
  */
 function getJobNotesJobIdColumn($pdo) {
-    static $jobIdColumn = null;
-
-    if ($jobIdColumn !== null) {
-        return $jobIdColumn;
-    }
-
-    $possibleColumns = ['job_id', 'jobid', 'jobId', 'jobID'];
-    $stmt = $pdo->query("SHOW COLUMNS FROM job_notes");
-    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-    // Build a map of lowercase => actual for reliable matching
-    $columnsLower = array_change_key_case(array_combine($columns, $columns), CASE_LOWER);
-
-    foreach ($possibleColumns as $column) {
-        $columnKey = strtolower($column);
-        if (isset($columnsLower[$columnKey])) {
-            $jobIdColumn = $columnsLower[$columnKey];
-            return $jobIdColumn;
-        }
-    }
-
-    // Try to discover any column that references a job identifier
-    foreach ($columns as $column) {
-        if (stripos($column, 'job') !== false) {
-            $jobIdColumn = $column;
-            return $jobIdColumn;
-        }
-    }
-
-    // Fallback to the first column if nothing matches to keep the query valid
-    $jobIdColumn = $columns[0] ?? 'job_id';
-    return $jobIdColumn;
+    // The schema uses target_key to store the referenced entity key.
+    return 'target_key';
 }
 
 /**

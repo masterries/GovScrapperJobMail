@@ -22,33 +22,36 @@
 <body>
     <header class="app-header">
         <div class="container-fluid">
-            <div class="row align-items-center">
-                <div class="col-lg-6 col-md-6">
+            <div class="header-rail">
+                <div class="brand-block">
                     <div class="app-logo">
                         <i class="bi bi-briefcase-fill"></i>
                         Job Dashboard
                     </div>
                     <div class="app-meta">Angemeldet als <?php echo htmlspecialchars($_SESSION['username']); ?></div>
+                    <div class="status-dots">
+                        <span class="dot green"></span> Aktiv
+                        <span class="dot blue ms-3"></span> <?php echo htmlspecialchars($time_frame); ?> Tage Sicht
+                    </div>
                 </div>
-                <div class="col-lg-6 col-md-6">
-                    <div class="user-section">
-                        <form method="POST" class="time-frame-form">
-                            <div class="input-group">
-                                <input type="number" name="time_frame" class="form-control" value="<?php echo $time_frame; ?>" min="1" max="365" aria-label="Zeitraum in Tagen">
-                                <span class="input-group-text">Tage</span>
-                            </div>
-                            <button type="submit" name="update_timeframe" class="btn btn-light btn-sm ms-md-2">
-                                <i class="bi bi-calendar-check"></i> Zeitraum speichern
-                            </button>
-                        </form>
-                        <div class="action-buttons d-flex align-items-center gap-2">
-                            <a href="job_statistics.php" class="btn btn-outline-light btn-sm">
-                                <i class="bi bi-bar-chart-fill"></i> Statistiken
-                            </a>
-                            <a href="logout.php" class="btn btn-light btn-sm text-primary">
-                                <i class="bi bi-box-arrow-right"></i> Logout
-                            </a>
+                <div class="user-section">
+                    <form method="POST" class="time-frame-form">
+                        <label class="me-2 small text-white-50 mb-0">Zeitraum</label>
+                        <div class="input-group">
+                            <input type="number" name="time_frame" class="form-control" value="<?php echo $time_frame; ?>" min="1" max="365" aria-label="Zeitraum in Tagen">
+                            <span class="input-group-text">Tage</span>
                         </div>
+                        <button type="submit" name="update_timeframe" class="btn btn-light btn-sm ms-md-2">
+                            <i class="bi bi-calendar-check"></i> Speichern
+                        </button>
+                    </form>
+                    <div class="action-buttons d-flex align-items-center gap-2">
+                        <a href="job_statistics.php" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-bar-chart-fill"></i> Statistiken
+                        </a>
+                        <a href="logout.php" class="btn btn-light btn-sm text-primary">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </a>
                     </div>
                 </div>
             </div>

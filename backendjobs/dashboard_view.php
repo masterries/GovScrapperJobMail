@@ -8,67 +8,87 @@ $filterCount = isset($filters) ? count($filters) : 0;
 ?>
 
 <section class="app-hero mt-3">
-    <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
-        <div>
-            <h2 class="mb-1">Dein Job-Cockpit</h2>
-            <p class="subtitle mb-2"><?php echo $time_info; ?></p>
-            <small class="text-muted">Verwalte Filter, suche gezielt und halte interessante Stellen fest.</small>
+    <div class="hero-grid">
+        <div class="hero-main">
+            <p class="eyebrow">Job Navigator</p>
+            <h2 class="mb-2">Dein Cockpit für Stellensuche &amp; Priorisierung</h2>
+            <p class="subtitle mb-3"><?php echo $time_info; ?></p>
+            <div class="hero-chips">
+                <span class="chip"><i class="bi bi-search"></i> <?php echo $jobCount; ?> Treffer</span>
+                <span class="chip"><i class="bi bi-funnel"></i> <?php echo $filterCount; ?> Filter</span>
+                <span class="chip"><i class="bi bi-clock-history"></i> <?php echo htmlspecialchars($time_frame); ?> Tage</span>
+            </div>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-            <?php if (!$is_guest): ?>
-            <a href="#newFilterTab" data-bs-toggle="tab" class="btn btn-primary" id="quickNewFilterBtn">
-                <i class="bi bi-plus-circle"></i> Neuer Filter
-            </a>
-            <a href="dashboard.php?pinned=1" class="btn btn-outline-primary">
-                <i class="bi bi-pin-angle"></i> Gepinnte Jobs
-            </a>
-            <?php endif; ?>
-            <a href="job_statistics.php" class="btn btn-outline-secondary">
-                <i class="bi bi-bar-chart"></i> Statistiken
-            </a>
+        <div class="hero-actions">
+            <div class="action-stack">
+                <?php if (!$is_guest): ?>
+                <a href="#newFilterTab" data-bs-toggle="tab" class="btn btn-primary" id="quickNewFilterBtn">
+                    <i class="bi bi-plus-circle"></i> Neuer Filter
+                </a>
+                <a href="dashboard.php?pinned=1" class="btn btn-outline-light">
+                    <i class="bi bi-pin-angle"></i> Gepinnte Jobs
+                </a>
+                <?php endif; ?>
+                <a href="job_statistics.php" class="btn btn-ghost">
+                    <i class="bi bi-bar-chart"></i> Statistiken öffnen
+                </a>
+            </div>
+            <div class="hero-note">
+                <i class="bi bi-stars"></i>
+                <span>Baue dir eine klare Übersicht und halte Prioritäten mit Notizen &amp; Pins fest.</span>
+            </div>
         </div>
     </div>
 
     <?php if ($is_guest): ?>
-    <div class="alert alert-warning mt-3 mb-0">
-        <div class="d-flex align-items-start gap-2">
-            <i class="bi bi-person-fill-exclamation fs-4"></i>
+    <div class="alert alert-warning mt-3 mb-0 rounded-3 shadow-sm soft-alert">
+        <div class="d-flex align-items-start gap-3">
+            <div class="avatar-dot bg-warning"></div>
             <div>
                 <h6 class="mb-1">Gast-Modus</h6>
                 <p class="mb-2">Als Gast können Sie Jobs der letzten 7 Tage einsehen, aber keine Pins oder Notizen anlegen.</p>
-                <a href="register.php" class="btn btn-sm btn-primary">Registrieren</a>
-                <a href="login.php" class="btn btn-sm btn-outline-primary ms-1">Anmelden</a>
+                <div class="d-flex gap-2">
+                    <a href="register.php" class="btn btn-sm btn-primary">Registrieren</a>
+                    <a href="login.php" class="btn btn-sm btn-outline-primary">Anmelden</a>
+                </div>
             </div>
         </div>
     </div>
     <?php endif; ?>
 </section>
 
-<div class="metrics-grid">
-    <div class="metric-card">
-        <div class="label">Gefundene Jobs</div>
-        <div class="value"><?php echo $jobCount; ?></div>
-        <span class="badge bg-light text-primary"><i class="bi bi-search"></i> Ergebnisbasis</span>
+<div class="pulse-grid">
+    <div class="pulse-card">
+        <div class="pulse-icon bg-primary-subtle text-primary"><i class="bi bi-search"></i></div>
+        <div>
+            <p class="label">Gefundene Jobs</p>
+            <h4 class="value mb-0"><?php echo $jobCount; ?></h4>
+        </div>
+        <span class="pill">Aktuelle Trefferbasis</span>
     </div>
-    <div class="metric-card">
-        <div class="label">Gepinnt</div>
-        <?php if ($is_guest): ?>
-            <div class="value text-muted">–</div>
-            <span class="badge bg-secondary">Nur für registrierte Nutzer</span>
-        <?php else: ?>
-            <div class="value"><?php echo $pinnedCount; ?></div>
-            <span class="badge bg-warning text-dark"><i class="bi bi-pin-angle"></i> Immer oben</span>
-        <?php endif; ?>
+    <div class="pulse-card">
+        <div class="pulse-icon bg-warning-subtle text-warning"><i class="bi bi-pin-angle"></i></div>
+        <div>
+            <p class="label">Gepinnt</p>
+            <h4 class="value mb-0"><?php echo $is_guest ? '–' : $pinnedCount; ?></h4>
+        </div>
+        <span class="pill">Markiert für Fokus</span>
     </div>
-    <div class="metric-card">
-        <div class="label">Eigene Filter</div>
-        <div class="value"><?php echo $filterCount; ?></div>
-        <span class="badge bg-light text-success"><i class="bi bi-funnel"></i> Schnellzugriff</span>
+    <div class="pulse-card">
+        <div class="pulse-icon bg-success-subtle text-success"><i class="bi bi-funnel"></i></div>
+        <div>
+            <p class="label">Eigene Filter</p>
+            <h4 class="value mb-0"><?php echo $filterCount; ?></h4>
+        </div>
+        <span class="pill">Schnellzugriff</span>
     </div>
-    <div class="metric-card">
-        <div class="label">Zeitraum</div>
-        <div class="value"><?php echo htmlspecialchars($time_frame); ?> Tage</div>
-        <span class="badge bg-info text-dark"><i class="bi bi-calendar-event"></i> Anpassbar</span>
+    <div class="pulse-card">
+        <div class="pulse-icon bg-info-subtle text-info"><i class="bi bi-calendar-event"></i></div>
+        <div>
+            <p class="label">Zeitraum</p>
+            <h4 class="value mb-0"><?php echo htmlspecialchars($time_frame); ?> Tage</h4>
+        </div>
+        <span class="pill">In den Einstellungen oben editierbar</span>
     </div>
 </div>
 
