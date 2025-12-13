@@ -4,6 +4,7 @@
 // Initialize variables
 $active_filter = null;
 $search_term = null;
+$group_search = null;
 $edit_filter = null;
 $pinned_only = false;
 $jobs = [];
@@ -62,6 +63,11 @@ if (isset($_GET['filter']) && $_GET['filter'] !== 'search') {
 } elseif (isset($_GET['search'])) {
     // Using search tab
     $search_term = trim($_GET['search']);
+
+    // Optional group/unique search by identifier
+    if (!empty($_GET['group_search'])) {
+        $group_search = trim($_GET['group_search']);
+    }
     
     // Check if search mode is specified
     if (isset($_GET['search_mode']) && in_array($_GET['search_mode'], ['soft', 'full'])) {
@@ -91,7 +97,18 @@ if (isset($_GET['date_to']) && !empty($_GET['date_to'])) {
 }
 
 // Fetch jobs data
-$jobs = getFilteredJobs($pdo, $active_filter, $search_term, $pinned_only, $pinned_job_ids, $time_frame, $search_mode, $custom_date_from, $custom_date_to);
+$jobs = getFilteredJobs(
+    $pdo,
+    $active_filter,
+    $search_term,
+    $pinned_only,
+    $pinned_job_ids,
+    $time_frame,
+    $search_mode,
+    $custom_date_from,
+    $custom_date_to,
+    $group_search
+);
 
 // Calculate time info for display
 if ($custom_date_from && $custom_date_to) {
@@ -409,7 +426,7 @@ function getJobNotesJobIdColumn($pdo) {
 /**
  * Get filtered jobs based on criteria
  */
-function getFilteredJobs($pdo, $active_filter, $search_term, $pinned_only, $pinned_job_ids, $time_frame, $search_mode = 'soft', $custom_date_from = null, $custom_date_to = null) {
+function getFilteredJobs($pdo, $active_filter, $search_term, $pinned_only, $pinned_job_ids, $time_frame, $search_mode = 'soft', $custom_date_from = null, $custom_date_to = null, $group_search = null) {
     // Special case for full-text search
     if ($search_mode === 'full' && !empty($search_term)) {
         // Build search condition for all relevant fields
@@ -495,10 +512,30 @@ function getFilteredJobs($pdo, $active_filter, $search_term, $pinned_only, $pinn
     
     // For soft search, use unique_jobs view
     $table = "unique_jobs";
+    $uniqueIdColumn = 'group_id';
+    try {
+        $columns = $pdo->query("SHOW COLUMNS FROM {$table}")->fetchAll(PDO::FETCH_COLUMN);
+        foreach (['group_id', 'id', 'groupid', 'group_key'] as $candidate) {
+            if (in_array($candidate, $columns, true)) {
+                $uniqueIdColumn = $candidate;
+                break;
+            }
+        }
+    } catch (Exception $e) {
+        // Default remains group_id
+    }
     $where_clauses = [];
     $params = [];
     
-    if ($pinned_only) {
+    if ($group_search) {
+        $where_clauses[] = "({$uniqueIdColumn} = ? OR grouped_ids LIKE ? OR id = ? OR base_title LIKE ? OR group_classification LIKE ? )";
+        $params[] = $group_search;
+        $params[] = "%{$group_search}%";
+        $params[] = $group_search;
+        $params[] = "%{$group_search}%";
+        $params[] = "%{$group_search}%";
+        // When searching by ID/Gruppe, show all matching rows regardless of timeframe
+    } elseif ($pinned_only) {
         // If we're in the pinned tab, show only pinned jobs
         if (!empty($pinned_job_ids)) {
             $placeholders = implode(',', array_fill(0, count($pinned_job_ids), '?'));
@@ -594,8 +631,8 @@ function getFilteredJobs($pdo, $active_filter, $search_term, $pinned_only, $pinn
     // Combine where clauses
     $where_sql = !empty($where_clauses) ? "WHERE " . implode(" AND ", $where_clauses) : "";
 
-    // Create the complete query
-    $query = "SELECT * FROM {$table} {$where_sql} ORDER BY created_at DESC";
+    // Create the complete query with a unified group_id alias
+    $query = "SELECT *, {$uniqueIdColumn} AS group_id FROM {$table} {$where_sql} ORDER BY created_at DESC";
 
     // Debug: Log the SQL query and parameters
     error_log("Soft search query: " . $query);

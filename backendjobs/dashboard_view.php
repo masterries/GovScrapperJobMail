@@ -10,8 +10,8 @@ $filterCount = isset($filters) ? count($filters) : 0;
 <section class="app-hero mt-3">
     <div class="hero-grid">
         <div class="hero-main">
-            <p class="eyebrow">Job Navigator</p>
-            <h2 class="mb-2">Dein Cockpit für Stellensuche &amp; Priorisierung</h2>
+            <p class="eyebrow">Job-Übersicht</p>
+            <h2 class="mb-2">Suche, filtere und behalte deine Stellen im Blick</h2>
             <p class="subtitle mb-3"><?php echo $time_info; ?></p>
             <div class="hero-chips">
                 <span class="chip"><i class="bi bi-search"></i> <?php echo $jobCount; ?> Treffer</span>
@@ -34,8 +34,8 @@ $filterCount = isset($filters) ? count($filters) : 0;
                 </a>
             </div>
             <div class="hero-note">
-                <i class="bi bi-stars"></i>
-                <span>Baue dir eine klare Übersicht und halte Prioritäten mit Notizen &amp; Pins fest.</span>
+                <i class="bi bi-info-circle"></i>
+                <span>Nutze Filter, Pins und Notizen, um relevante Stellen schneller wiederzufinden.</span>
             </div>
         </div>
     </div>
@@ -170,6 +170,13 @@ $filterCount = isset($filters) ? count($filters) : 0;
                     <label for="search" class="form-label">Suchbegriff</label>
                     <input type="text" name="search" id="search" class="form-control" placeholder="Suchbegriff eingeben..."
                            value="<?php echo htmlspecialchars($search_term ?? ''); ?>">
+                </div>
+
+                <div class="mb-3">
+                    <label for="group_search" class="form-label">Gruppen- oder Job-ID</label>
+                    <input type="text" name="group_search" id="group_search" class="form-control" placeholder="z.B. Gruppenschlüssel oder Job-ID"
+                           value="<?php echo htmlspecialchars($group_search ?? ''); ?>">
+                    <small class="text-muted">Findet eindeutige Gruppen oder Jobs – außerhalb des gewählten Zeitraums.</small>
                 </div>
 
                 <div class="mb-3">
