@@ -16,6 +16,35 @@ function getJobNotesJobIdColumn($pdo) {
     return 'target_key';
 }
 
+/**
+ * Determine the identifier column used by the unique_jobs table.
+ * Falls back to `id` if the expected column (e.g., group_id) is absent.
+ */
+function getUniqueJobsIdColumn($pdo) {
+    static $idColumn = null;
+
+    if ($idColumn !== null) {
+        return $idColumn;
+    }
+
+    try {
+        $columns = $pdo->query("SHOW COLUMNS FROM unique_jobs")->fetchAll(PDO::FETCH_COLUMN);
+        $preferred = ['group_id', 'id', 'groupid', 'group_key'];
+
+        foreach ($preferred as $candidate) {
+            if (in_array($candidate, $columns, true)) {
+                $idColumn = $candidate;
+                return $idColumn;
+            }
+        }
+    } catch (Exception $e) {
+        // If the table cannot be introspected, default to id
+    }
+
+    $idColumn = 'id';
+    return $idColumn;
+}
+
 // Check if a group_id is provided
 if (!isset($_GET['group_id']) || !is_numeric($_GET['group_id'])) {
     header("Location: dashboard.php");
@@ -23,9 +52,10 @@ if (!isset($_GET['group_id']) || !is_numeric($_GET['group_id'])) {
 }
 
 $group_id = (int)$_GET['group_id'];
+$uniqueJobsIdColumn = getUniqueJobsIdColumn($pdo);
 
 // Fetch the unique job details first
-$stmt = $pdo->prepare("SELECT * FROM unique_jobs WHERE group_id = ?");
+$stmt = $pdo->prepare("SELECT * FROM unique_jobs WHERE {$uniqueJobsIdColumn} = ?");
 $stmt->execute([$group_id]);
 $group_job = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -33,6 +63,9 @@ if (!$group_job) {
     header("Location: dashboard.php");
     exit;
 }
+
+// Store display-friendly identifier
+$display_group_id = $group_job[$uniqueJobsIdColumn] ?? $group_id;
 
 // Fetch all individual jobs in this group using the grouped_ids field
 $grouped_ids = explode(',', $group_job['grouped_ids']);
@@ -237,7 +270,7 @@ $time_frame = 0;
                 <p class="mb-1 text-uppercase small fw-semibold text-white-50">Job Details</p>
                 <h1 class="mb-2"><?php echo htmlspecialchars($group_job['base_title'] ?? 'Kein Titel verfügbar'); ?></h1>
                 <div class="d-flex flex-wrap align-items-center">
-                    <span class="info-chip"><i class="bi bi-collection"></i> Gruppe <?php echo htmlspecialchars($group_job['group_id'] ?? 'N/A'); ?></span>
+                    <span class="info-chip"><i class="bi bi-collection"></i> Gruppe <?php echo htmlspecialchars($display_group_id ?? 'N/A'); ?></span>
                     <span class="info-chip"><i class="bi bi-people"></i> <?php echo count($jobs); ?> ähnliche Stellen</span>
                     <span class="info-chip"><i class="bi bi-calendar-event"></i> <?php echo !empty($group_job['created_at']) ? date('d.m.Y', strtotime($group_job['created_at'])) : 'N/A'; ?></span>
                 </div>
@@ -262,7 +295,7 @@ $time_frame = 0;
                     </div>
                     <div class="col-md-4">
                         <p class="text-uppercase small text-muted mb-1">Gruppe ID</p>
-                        <h6 class="mb-0"><?php echo htmlspecialchars($group_job['group_id'] ?? 'N/A'); ?></h6>
+                        <h6 class="mb-0"><?php echo htmlspecialchars($display_group_id ?? 'N/A'); ?></h6>
                     </div>
                     <div class="col-md-4">
                         <p class="text-uppercase small text-muted mb-1">Anzahl ähnlicher Jobs</p>
@@ -276,7 +309,7 @@ $time_frame = 0;
                 </div>
                 <div class="debug-info">
                     <p><strong>Debug-Info:</strong></p>
-                    <p>Group ID: <?php echo $group_id; ?></p>
+                    <p>Group ID: <?php echo htmlspecialchars($display_group_id ?? $group_id); ?></p>
                     <p>Grouped IDs: <?php echo $group_job['grouped_ids'] ?? 'Not available'; ?></p>
                 </div>
                 <?php endif; ?>
