@@ -19,18 +19,29 @@ function getJobNotesJobIdColumn($pdo) {
         return $jobIdColumn;
     }
 
-    $possibleColumns = ['job_id', 'jobId', 'jobid'];
+    $possibleColumns = ['job_id', 'jobid', 'jobId', 'jobID'];
     $stmt = $pdo->query("SHOW COLUMNS FROM job_notes");
     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
+    // Create a lowercase map for consistent matching regardless of column casing
+    $columnsLower = array_change_key_case(array_combine($columns, $columns), CASE_LOWER);
+
     foreach ($possibleColumns as $column) {
-        if (in_array($column, $columns, true)) {
+        $columnKey = strtolower($column);
+        if (isset($columnsLower[$columnKey])) {
+            $jobIdColumn = $columnsLower[$columnKey];
+            return $jobIdColumn;
+        }
+    }
+
+    foreach ($columns as $column) {
+        if (stripos($column, 'job') !== false) {
             $jobIdColumn = $column;
             return $jobIdColumn;
         }
     }
 
-    $jobIdColumn = 'job_id';
+    $jobIdColumn = $columns[0] ?? 'job_id';
     return $jobIdColumn;
 }
 
@@ -152,8 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_guest) {
 
 // AJAX request to get note - only for registered users
 if (isset($_GET['get_note']) && isset($_GET['job_id']) && !$is_guest) {
+    $jobIdColumn = getJobNotesJobIdColumn($pdo);
     $job_id = (int)$_GET['job_id'];
-    $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND job_id = ?");
+    $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND {$jobIdColumn} = ?");
     $stmt->execute([$_SESSION['user_id'], $job_id]);
     $note = $stmt->fetchColumn();
     

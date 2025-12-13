@@ -408,19 +408,31 @@ function getJobNotesJobIdColumn($pdo) {
         return $jobIdColumn;
     }
 
-    $possibleColumns = ['job_id', 'jobId', 'jobid'];
+    $possibleColumns = ['job_id', 'jobid', 'jobId', 'jobID'];
     $stmt = $pdo->query("SHOW COLUMNS FROM job_notes");
     $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
+    // Build a map of lowercase => actual for reliable matching
+    $columnsLower = array_change_key_case(array_combine($columns, $columns), CASE_LOWER);
+
     foreach ($possibleColumns as $column) {
-        if (in_array($column, $columns, true)) {
+        $columnKey = strtolower($column);
+        if (isset($columnsLower[$columnKey])) {
+            $jobIdColumn = $columnsLower[$columnKey];
+            return $jobIdColumn;
+        }
+    }
+
+    // Try to discover any column that references a job identifier
+    foreach ($columns as $column) {
+        if (stripos($column, 'job') !== false) {
             $jobIdColumn = $column;
             return $jobIdColumn;
         }
     }
 
-    // Default back to job_id if nothing matches so application logic stays predictable
-    $jobIdColumn = 'job_id';
+    // Fallback to the first column if nothing matches to keep the query valid
+    $jobIdColumn = $columns[0] ?? 'job_id';
     return $jobIdColumn;
 }
 
