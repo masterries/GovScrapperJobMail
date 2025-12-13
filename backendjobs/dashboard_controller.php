@@ -19,8 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_guest) {
 
 // Handle AJAX request to get note
 if (isset($_GET['get_note']) && isset($_GET['job_id']) && !$is_guest) {
+    $jobIdColumn = getJobNotesJobIdColumn($pdo);
     $job_id = (int)$_GET['job_id'];
-    $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND job_id = ?");
+    $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND {$jobIdColumn} = ?");
     $stmt->execute([$_SESSION['user_id'], $job_id]);
     $note = $stmt->fetchColumn();
     
@@ -303,16 +304,17 @@ function saveJobNote($pdo) {
     $note = trim($_POST['note']);
     
     // Check if note already exists
-    $stmt = $pdo->prepare("SELECT id FROM job_notes WHERE user_id = ? AND job_id = ?");
+    $jobIdColumn = getJobNotesJobIdColumn($pdo);
+    $stmt = $pdo->prepare("SELECT id FROM job_notes WHERE user_id = ? AND {$jobIdColumn} = ?");
     $stmt->execute([$_SESSION['user_id'], $job_id]);
-    
+
     if ($stmt->rowCount() > 0) {
         // Update existing note
-        $stmt = $pdo->prepare("UPDATE job_notes SET note = ?, updated_at = NOW() WHERE user_id = ? AND job_id = ?");
+        $stmt = $pdo->prepare("UPDATE job_notes SET note = ?, updated_at = NOW() WHERE user_id = ? AND {$jobIdColumn} = ?");
         $stmt->execute([$note, $_SESSION['user_id'], $job_id]);
     } else {
         // Insert new note
-        $stmt = $pdo->prepare("INSERT INTO job_notes (user_id, job_id, note) VALUES (?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO job_notes (user_id, {$jobIdColumn}, note) VALUES (?, ?, ?)");
         $stmt->execute([$_SESSION['user_id'], $job_id, $note]);
     }
     
@@ -381,10 +383,11 @@ function getUserPinnedJobs($pdo) {
  * Get user's job notes
  */
 function getUserJobNotes($pdo) {
+    $jobIdColumn = getJobNotesJobIdColumn($pdo);
     $stmt = $pdo->prepare(
-        "SELECT jn.job_id, jn.note 
+        "SELECT jn.{$jobIdColumn} AS job_id, jn.note
          FROM job_notes jn
-         LEFT JOIN unique_jobs uj ON jn.job_id = uj.id OR FIND_IN_SET(jn.job_id, uj.grouped_ids)
+         LEFT JOIN unique_jobs uj ON jn.{$jobIdColumn} = uj.id OR FIND_IN_SET(jn.{$jobIdColumn}, uj.grouped_ids)
          WHERE jn.user_id = ?"
     );
     $stmt->execute([$_SESSION['user_id']]);
@@ -393,6 +396,32 @@ function getUserJobNotes($pdo) {
         $job_notes[$row['job_id']] = $row['note'];
     }
     return $job_notes;
+}
+
+/**
+ * Resolve the column name used for job IDs in the job_notes table
+ */
+function getJobNotesJobIdColumn($pdo) {
+    static $jobIdColumn = null;
+
+    if ($jobIdColumn !== null) {
+        return $jobIdColumn;
+    }
+
+    $possibleColumns = ['job_id', 'jobId', 'jobid'];
+    $stmt = $pdo->query("SHOW COLUMNS FROM job_notes");
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    foreach ($possibleColumns as $column) {
+        if (in_array($column, $columns, true)) {
+            $jobIdColumn = $column;
+            return $jobIdColumn;
+        }
+    }
+
+    // Default back to job_id if nothing matches so application logic stays predictable
+    $jobIdColumn = 'job_id';
+    return $jobIdColumn;
 }
 
 /**

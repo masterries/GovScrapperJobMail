@@ -12,6 +12,28 @@ require_once './db_connect.php'; // Include your database connection
 // Check if user is a guest
 $is_guest = isset($_SESSION['is_guest']) && $_SESSION['is_guest'] === true;
 
+function getJobNotesJobIdColumn($pdo) {
+    static $jobIdColumn = null;
+
+    if ($jobIdColumn !== null) {
+        return $jobIdColumn;
+    }
+
+    $possibleColumns = ['job_id', 'jobId', 'jobid'];
+    $stmt = $pdo->query("SHOW COLUMNS FROM job_notes");
+    $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    foreach ($possibleColumns as $column) {
+        if (in_array($column, $columns, true)) {
+            $jobIdColumn = $column;
+            return $jobIdColumn;
+        }
+    }
+
+    $jobIdColumn = 'job_id';
+    return $jobIdColumn;
+}
+
 // Check if a group_id is provided
 if (!isset($_GET['group_id']) || !is_numeric($_GET['group_id'])) {
     header("Location: dashboard.php");
@@ -52,11 +74,12 @@ if (!empty($grouped_ids)) {
 
 // Get user's pinned jobs and notes - only for registered users
 if (!$is_guest) {
+    $jobIdColumn = getJobNotesJobIdColumn($pdo);
     $stmt = $pdo->prepare("SELECT job_id FROM pinned_jobs WHERE user_id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $pinned_job_ids = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'job_id');
 
-    $stmt = $pdo->prepare("SELECT job_id, note FROM job_notes WHERE user_id = ?");
+    $stmt = $pdo->prepare("SELECT {$jobIdColumn} AS job_id, note FROM job_notes WHERE user_id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $job_notes = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -103,18 +126,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_guest) {
     if (isset($_POST['save_note'])) {
         $job_id = (int)$_POST['job_id'];
         $note = trim($_POST['note']);
-        
+        $jobIdColumn = getJobNotesJobIdColumn($pdo);
+
         // Check if note already exists
-        $stmt = $pdo->prepare("SELECT id FROM job_notes WHERE user_id = ? AND job_id = ?");
+        $stmt = $pdo->prepare("SELECT id FROM job_notes WHERE user_id = ? AND {$jobIdColumn} = ?");
         $stmt->execute([$_SESSION['user_id'], $job_id]);
-        
+
         if ($stmt->rowCount() > 0) {
             // Update existing note
-            $stmt = $pdo->prepare("UPDATE job_notes SET note = ?, updated_at = NOW() WHERE user_id = ? AND job_id = ?");
+            $stmt = $pdo->prepare("UPDATE job_notes SET note = ?, updated_at = NOW() WHERE user_id = ? AND {$jobIdColumn} = ?");
             $stmt->execute([$note, $_SESSION['user_id'], $job_id]);
         } else {
             // Insert new note
-            $stmt = $pdo->prepare("INSERT INTO job_notes (user_id, job_id, note) VALUES (?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO job_notes (user_id, {$jobIdColumn}, note) VALUES (?, ?, ?)");
             $stmt->execute([$_SESSION['user_id'], $job_id, $note]);
         }
         
