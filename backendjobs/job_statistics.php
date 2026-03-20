@@ -9,11 +9,41 @@ if (!isset($_SESSION['user_id'])) {
 
 require_once './db_connect.php'; // Include your database connection
 
+/**
+ * Determine the identifier column used by the unique_jobs table.
+ * Falls back to `id` when a dedicated group identifier column is absent.
+ */
+function getUniqueJobsIdColumn($pdo) {
+    static $idColumn = null;
+
+    if ($idColumn !== null) {
+        return $idColumn;
+    }
+
+    try {
+        $columns = $pdo->query("SHOW COLUMNS FROM unique_jobs")->fetchAll(PDO::FETCH_COLUMN);
+        $preferred = ['group_id', 'id', 'groupid', 'group_key'];
+
+        foreach ($preferred as $candidate) {
+            if (in_array($candidate, $columns, true)) {
+                $idColumn = $candidate;
+                return $idColumn;
+            }
+        }
+    } catch (Exception $e) {
+        // If introspection fails, fall through to default
+    }
+
+    $idColumn = 'id';
+    return $idColumn;
+}
+
 // Get active view type (all jobs or unique jobs)
 $view_type = isset($_GET['view']) && $_GET['view'] === 'all' ? 'all' : 'unique';
 
 // Fetch extended job statistics
 $jobStats = [];
+$uniqueJobsIdColumn = getUniqueJobsIdColumn($pdo);
 
 // Total number of jobs
 $stmt = $pdo->query("SELECT COUNT(*) as total_jobs FROM jobs");
@@ -87,21 +117,21 @@ $stmt = $pdo->query("
 $jobStats['by_organization'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Most frequent jobs (repeated postings) - hot jobs
-$stmt = $pdo->query("
-    SELECT 
-        uj.base_title, 
-        uj.group_classification, 
-        uj.group_id, 
-        COUNT(DISTINCT DATE(j.created_at)) as posting_days, 
+$stmt = $pdo->query(
+    "SELECT
+        uj.base_title,
+        uj.group_classification,
+        uj.{$uniqueJobsIdColumn} AS group_id,
+        COUNT(DISTINCT DATE(j.created_at)) as posting_days,
         COUNT(*) as appearance_count,
         MAX(j.created_at) as last_posted
     FROM unique_jobs uj
     JOIN jobs j ON FIND_IN_SET(j.id, uj.grouped_ids)
-    GROUP BY uj.base_title, uj.group_classification, uj.group_id
+    GROUP BY uj.base_title, uj.group_classification, uj.{$uniqueJobsIdColumn}
     HAVING appearance_count > 1
     ORDER BY appearance_count DESC
-    LIMIT 15
-");
+    LIMIT 15"
+);
 $jobStats['hot_jobs'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Jobs by month - depends on view type
