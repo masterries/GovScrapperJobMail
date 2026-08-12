@@ -12,6 +12,39 @@ require_once './db_connect.php'; // Include your database connection
 // Check if user is a guest
 $is_guest = isset($_SESSION['is_guest']) && $_SESSION['is_guest'] === true;
 
+function getJobNotesJobIdColumn($pdo) {
+    return 'target_key';
+}
+
+/**
+ * Determine the identifier column used by the unique_jobs table.
+ * Falls back to `id` if the expected column (e.g., group_id) is absent.
+ */
+function getUniqueJobsIdColumn($pdo) {
+    static $idColumn = null;
+
+    if ($idColumn !== null) {
+        return $idColumn;
+    }
+
+    try {
+        $columns = $pdo->query("SHOW COLUMNS FROM unique_jobs")->fetchAll(PDO::FETCH_COLUMN);
+        $preferred = ['group_id', 'id', 'groupid', 'group_key'];
+
+        foreach ($preferred as $candidate) {
+            if (in_array($candidate, $columns, true)) {
+                $idColumn = $candidate;
+                return $idColumn;
+            }
+        }
+    } catch (Exception $e) {
+        // If the table cannot be introspected, default to id
+    }
+
+    $idColumn = 'id';
+    return $idColumn;
+}
+
 // Check if a group_id is provided
 if (!isset($_GET['group_id']) || !is_numeric($_GET['group_id'])) {
     header("Location: dashboard.php");
@@ -19,9 +52,10 @@ if (!isset($_GET['group_id']) || !is_numeric($_GET['group_id'])) {
 }
 
 $group_id = (int)$_GET['group_id'];
+$uniqueJobsIdColumn = getUniqueJobsIdColumn($pdo);
 
 // Fetch the unique job details first
-$stmt = $pdo->prepare("SELECT * FROM unique_jobs WHERE group_id = ?");
+$stmt = $pdo->prepare("SELECT * FROM unique_jobs WHERE {$uniqueJobsIdColumn} = ?");
 $stmt->execute([$group_id]);
 $group_job = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -29,6 +63,9 @@ if (!$group_job) {
     header("Location: dashboard.php");
     exit;
 }
+
+// Store display-friendly identifier
+$display_group_id = $group_job[$uniqueJobsIdColumn] ?? $group_id;
 
 // Fetch all individual jobs in this group using the grouped_ids field
 $grouped_ids = explode(',', $group_job['grouped_ids']);
@@ -52,11 +89,12 @@ if (!empty($grouped_ids)) {
 
 // Get user's pinned jobs and notes - only for registered users
 if (!$is_guest) {
+    $jobIdColumn = getJobNotesJobIdColumn($pdo);
     $stmt = $pdo->prepare("SELECT job_id FROM pinned_jobs WHERE user_id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $pinned_job_ids = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'job_id');
 
-    $stmt = $pdo->prepare("SELECT job_id, note FROM job_notes WHERE user_id = ?");
+    $stmt = $pdo->prepare("SELECT {$jobIdColumn} AS job_id, note FROM job_notes WHERE user_id = ? AND target_type = 'job'");
     $stmt->execute([$_SESSION['user_id']]);
     $job_notes = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -103,18 +141,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_guest) {
     if (isset($_POST['save_note'])) {
         $job_id = (int)$_POST['job_id'];
         $note = trim($_POST['note']);
-        
+        $jobIdColumn = getJobNotesJobIdColumn($pdo);
+
         // Check if note already exists
-        $stmt = $pdo->prepare("SELECT id FROM job_notes WHERE user_id = ? AND job_id = ?");
+        $stmt = $pdo->prepare("SELECT id FROM job_notes WHERE user_id = ? AND target_type = 'job' AND {$jobIdColumn} = ?");
         $stmt->execute([$_SESSION['user_id'], $job_id]);
-        
+
         if ($stmt->rowCount() > 0) {
             // Update existing note
-            $stmt = $pdo->prepare("UPDATE job_notes SET note = ?, updated_at = NOW() WHERE user_id = ? AND job_id = ?");
+            $stmt = $pdo->prepare("UPDATE job_notes SET note = ?, updated_at = NOW() WHERE user_id = ? AND target_type = 'job' AND {$jobIdColumn} = ?");
             $stmt->execute([$note, $_SESSION['user_id'], $job_id]);
         } else {
             // Insert new note
-            $stmt = $pdo->prepare("INSERT INTO job_notes (user_id, job_id, note) VALUES (?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO job_notes (user_id, target_type, {$jobIdColumn}, note) VALUES (?, 'job', ?, ?)");
             $stmt->execute([$_SESSION['user_id'], $job_id, $note]);
         }
         
@@ -128,8 +167,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_guest) {
 
 // AJAX request to get note - only for registered users
 if (isset($_GET['get_note']) && isset($_GET['job_id']) && !$is_guest) {
+    $jobIdColumn = getJobNotesJobIdColumn($pdo);
     $job_id = (int)$_GET['job_id'];
-    $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND job_id = ?");
+    $stmt = $pdo->prepare("SELECT note FROM job_notes WHERE user_id = ? AND target_type = 'job' AND {$jobIdColumn} = ?");
     $stmt->execute([$_SESSION['user_id'], $job_id]);
     $note = $stmt->fetchColumn();
     
@@ -154,83 +194,122 @@ $time_frame = 0;
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="mobile-styles.css">
     <style>
+        body {
+            background: radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.08), transparent 35%),
+                        radial-gradient(circle at 80% 0%, rgba(99, 102, 241, 0.08), transparent 30%),
+                        #eef2f7;
+        }
         .pinned {
-            background-color: #fff3cd;
+            background-color: #fff7e6;
+            border-color: #ffb347 !important;
         }
         .note-icon {
             cursor: pointer;
-            color: #6c757d;
+            color: #94a3b8;
+            transition: color 0.2s ease, transform 0.2s ease;
         }
         .note-icon:hover {
-            color: #212529;
+            color: #0f172a;
+            transform: translateY(-1px);
         }
         .note-icon.has-note {
-            color: #ffc107;
+            color: #f59e0b;
         }
         .note-modal textarea {
-            height: 200px;
+            height: 220px;
         }
         .job-card {
             margin-bottom: 20px;
             transition: all 0.3s ease;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+            border-radius: 1rem;
         }
         .job-card:hover {
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        }
-        .job-card.pinned {
-            border-color: #ffc107;
+            box-shadow: 0 0.8rem 1.4rem rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
         }
         .job-description {
-            max-height: 300px;
+            max-height: 320px;
             overflow-y: auto;
         }
         .debug-info {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 0.25rem;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.6rem;
             padding: 1rem;
             margin-bottom: 1rem;
             font-family: monospace;
             font-size: 0.875rem;
+        }
+        .header-hero {
+            background: linear-gradient(135deg, #0f172a, #111827, #1d4ed8);
+            color: #fff;
+            border-radius: 1.1rem;
+            padding: 1.4rem 1.6rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+        }
+        .info-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 0.3rem 0.7rem;
+            border-radius: 999px;
+            margin-right: 0.35rem;
         }
     </style>
 </head>
 <body>
     <div class="container mt-4 job-details-container">
         <!-- Header with navigation -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4>Job Details</h4>
+        <div class="header-hero d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
-                <a href="dashboard.php" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Zurück zum Dashboard
+                <p class="mb-1 text-uppercase small fw-semibold text-white-50">Job Details</p>
+                <h1 class="mb-2"><?php echo htmlspecialchars($group_job['base_title'] ?? 'Kein Titel verfügbar'); ?></h1>
+                <div class="d-flex flex-wrap align-items-center">
+                    <span class="info-chip"><i class="bi bi-collection"></i> Gruppe <?php echo htmlspecialchars($display_group_id ?? 'N/A'); ?></span>
+                    <span class="info-chip"><i class="bi bi-people"></i> <?php echo count($jobs); ?> ähnliche Stellen</span>
+                    <span class="info-chip"><i class="bi bi-calendar-event"></i> <?php echo !empty($group_job['created_at']) ? date('d.m.Y', strtotime($group_job['created_at'])) : 'N/A'; ?></span>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="job_statistics.php" class="btn btn-outline-light">
+                    <i class="bi bi-graph-up"></i> Statistiken
+                </a>
+                <a href="dashboard.php" class="btn btn-light text-primary">
+                    <i class="bi bi-arrow-left"></i> Zurück
                 </a>
             </div>
         </div>
-        
+
         <!-- Job Group Info -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5><?php echo htmlspecialchars($group_job['base_title'] ?? 'Kein Titel verfügbar'); ?></h5>
-            </div>
+        <div class="card mb-4 border-0 shadow-sm">
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Klassifikation:</strong> <?php echo htmlspecialchars($group_job['group_classification'] ?? 'N/A'); ?></p>
-                        <p><strong>Erstellt am:</strong> <?php echo !empty($group_job['created_at']) ? date('d.m.Y', strtotime($group_job['created_at'])) : 'N/A'; ?></p>
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-4">
+                        <p class="text-uppercase small text-muted mb-1">Klassifikation</p>
+                        <h6 class="mb-0"><?php echo htmlspecialchars($group_job['group_classification'] ?? 'N/A'); ?></h6>
                     </div>
-                    <div class="col-md-6">
-                        <p><strong>Gruppe ID:</strong> <?php echo htmlspecialchars($group_job['group_id'] ?? 'N/A'); ?></p>
-                        <p><strong>Anzahl ähnlicher Jobs:</strong> <?php echo count($jobs); ?></p>
+                    <div class="col-md-4">
+                        <p class="text-uppercase small text-muted mb-1">Gruppe ID</p>
+                        <h6 class="mb-0"><?php echo htmlspecialchars($display_group_id ?? 'N/A'); ?></h6>
+                    </div>
+                    <div class="col-md-4">
+                        <p class="text-uppercase small text-muted mb-1">Anzahl ähnlicher Jobs</p>
+                        <h6 class="mb-0"><?php echo count($jobs); ?></h6>
                     </div>
                 </div>
-                
+
                 <?php if (empty($jobs)): ?>
-                <div class="alert alert-warning">
+                <div class="alert alert-warning mt-3">
                     <strong>Hinweis:</strong> Keine einzelnen Jobs in dieser Gruppe gefunden.
                 </div>
                 <div class="debug-info">
                     <p><strong>Debug-Info:</strong></p>
-                    <p>Group ID: <?php echo $group_id; ?></p>
+                    <p>Group ID: <?php echo htmlspecialchars($display_group_id ?? $group_id); ?></p>
                     <p>Grouped IDs: <?php echo $group_job['grouped_ids'] ?? 'Not available'; ?></p>
                 </div>
                 <?php endif; ?>
