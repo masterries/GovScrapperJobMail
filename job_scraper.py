@@ -3,7 +3,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+import glob
 import os
 import random
 import re
@@ -52,6 +53,15 @@ MAX_DETAIL_FETCHES = 100     # per run; the rest is fetched on the next run
 MAX_DETAIL_FAILURES = 3      # consecutive failed detail pages before details are paused for this run
 TIME_BUDGET = 20 * 60        # seconds; afterwards the scraper stops and saves what it has
 RETRY_STATUSES = (429, 500, 502, 503, 504)
+
+# Storage. GitHub rejects files over 100 MB, so JOBS_FILE only keeps the jobs that were in the
+# listing recently. Older jobs move to one archive file per month of their adding_date, which
+# stops growing once the jobs of that month are archived. ARCHIVE_INDEX maps every link ever
+# seen to that month, so archived jobs are never reported as new again.
+JOBS_FILE = 'jobs_all_processed.json'
+ARCHIVE_DIR = 'archive'
+ARCHIVE_INDEX = os.path.join(ARCHIVE_DIR, 'index.json')
+ARCHIVE_AFTER_DAYS = 60      # jobs not in the listing for this long are archived
 
 
 class CappedRetry(Retry):
@@ -311,23 +321,120 @@ def add_job_details(jobs, existing_jobs_dict, deadline):
 
     return complete
 
-def scrape_jobs():
+def read_json(path, default):
+    if not os.path.exists(path):
+        return default
+    with open(path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def write_text(path, text):
+    """Write via a temporary file, so an interrupted run never leaves a truncated file behind."""
+    os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+    tmp_path = path + '.tmp'
+    with open(tmp_path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(text)
+    os.replace(tmp_path, path)
+
+def write_jobs(jobs, path):
+    """Compact JSON with one job per line: small files, and git diffs still show which jobs changed."""
+    jobs = sorted(jobs, key=lambda job: job.get('adding_date', ''))
+    lines = ',\n'.join(json.dumps(job, ensure_ascii=False, separators=(',', ':')) for job in jobs)
+    write_text(path, f'[\n{lines}\n]\n' if jobs else '[]\n')
+
+def archive_month(job):
+    return job.get('adding_date', '')[:7] or 'undated'
+
+def archive_path(month):
+    return os.path.join(ARCHIVE_DIR, f'jobs_{month}.json')
+
+def last_seen(job):
+    """Date the job was last in the listing. Jobs stored before 'last_seen' existed fall back to
+    the date they were added or last updated."""
+    return job.get('last_seen') or max(job.get('adding_date', ''), job.get('updated_date', ''))[:10]
+
+class JobStore:
+    """All jobs ever scraped: the active ones in JOBS_FILE, older ones in the monthly archives."""
+
+    def __init__(self):
+        self.active = {job['Link']: job for job in read_json(JOBS_FILE, []) if 'Link' in job}
+        self.archives = {}            # month -> {link: job}, loaded when needed
+        self.changed_months = set()
+        self.index = read_json(ARCHIVE_INDEX, None)
+        if self.index is None:
+            # First run with the archive (or the index got lost): rebuild it from the job files
+            self.index = {}
+            for path in sorted(glob.glob(archive_path('*'))):
+                for job in read_json(path, []):
+                    self.index[job['Link']] = archive_month(job)
+            for link, job in self.active.items():
+                self.index[link] = archive_month(job)
+        print(f"Loaded {len(self.active)} active jobs, {len(self.index)} known links")
+
+    def is_known(self, link):
+        return link in self.index or link in self.active
+
+    def load_archive(self, month):
+        if month not in self.archives:
+            self.archives[month] = {job['Link']: job for job in read_json(archive_path(month), [])}
+        return self.archives[month]
+
+    def get(self, link):
+        """The stored job for a link, or None. An archived job moves back to the active jobs."""
+        if link in self.active:
+            return self.active[link]
+        month = self.index.get(link)
+        if month is None:
+            return None
+        job = self.load_archive(month).pop(link, None)
+        if job is not None:
+            print(f"Restored from the archive: {link}")
+            self.changed_months.add(month)
+            self.active[link] = job
+        return job
+
+    def add(self, job):
+        self.active[job['Link']] = job
+        self.index[job['Link']] = archive_month(job)
+
+    def archive_old_jobs(self):
+        cutoff = (datetime.now() - timedelta(days=ARCHIVE_AFTER_DAYS)).date().isoformat()
+        old_links = [link for link, job in self.active.items() if last_seen(job) < cutoff]
+        for link in old_links:
+            job = self.active.pop(link)
+            month = archive_month(job)
+            self.load_archive(month)[link] = job
+            self.index[link] = month
+            self.changed_months.add(month)
+        return len(old_links)
+
+    def save(self):
+        for link, job in self.active.items():
+            self.index.setdefault(link, archive_month(job))
+        for month in sorted(self.changed_months):
+            if self.archives[month]:
+                write_jobs(self.archives[month].values(), archive_path(month))
+            elif os.path.exists(archive_path(month)):
+                os.remove(archive_path(month))  # all its jobs are listed again
+        write_text(ARCHIVE_INDEX, json.dumps(self.index, ensure_ascii=False, indent=0, sort_keys=True) + '\n')
+        write_jobs(self.active.values(), JOBS_FILE)
+        self.changed_months.clear()
+
+def scrape_jobs(store):
     """Scrape the listing, then the missing detail pages.
 
     Returns (processed_jobs, complete).
     """
     deadline = time.monotonic() + TIME_BUDGET
 
-    # Load existing jobs to check if we need to fetch details
-    existing_jobs_dict = {}
-    if os.path.exists('jobs_all_processed.json'):
-        with open('jobs_all_processed.json', 'r', encoding='utf-8') as f:
-            existing_jobs = json.load(f)
-        existing_jobs_dict = {job['Link']: job for job in existing_jobs if 'Link' in job}
-        print(f"Loaded {len(existing_jobs_dict)} existing jobs for reference")
-
     # Listing first, so a blocked detail page can't cost us the list of new jobs
     jobs, listing_complete = scrape_listing(deadline)
+
+    # Stored jobs serve as the detail cache; archived jobs that are listed again are restored
+    existing_jobs_dict = {}
+    for job in jobs:
+        existing_job = store.get(job['Link'])
+        if existing_job:
+            existing_jobs_dict[job['Link']] = existing_job
     details_complete = add_job_details(jobs, existing_jobs_dict, deadline)
 
     return process_jobs(jobs), listing_complete and details_complete
@@ -352,30 +459,24 @@ def process_jobs(jobs):
 
     return processed_jobs
 
-def update_json(new_jobs, filename='jobs_all_processed.json'):
-    if os.path.exists(filename):
-        with open(filename, 'r', encoding='utf-8') as f:
-            existing_jobs = json.load(f)
-    else:
-        existing_jobs = []
+def update_json(new_jobs, store):
+    """Merge the scraped jobs into the store, archive old jobs and save everything.
 
-    existing_links = {job['Link'] for job in existing_jobs}
-    existing_jobs_dict = {job['Link']: job for job in existing_jobs}
-
-    updated_jobs = existing_jobs.copy()
+    Returns the jobs that were never seen before.
+    """
+    today = datetime.now().date().isoformat()
     new_jobs_added = []
 
     for job in new_jobs:
-        if job['Link'] not in existing_links:
-            # This is a completely new job
-            updated_jobs.append(job)
-            new_jobs_added.append(job)
-            existing_links.add(job['Link'])
-            existing_jobs_dict[job['Link']] = job
+        existing_job = store.get(job['Link'])
+        if existing_job is None:
+            # Archived links are known too, so a job is never reported as new twice
+            if not store.is_known(job['Link']):
+                new_jobs_added.append(job)
+            store.add(job)
+            existing_job = job
         else:
             # The job exists, but check if we need to update with new detail info
-            existing_job = existing_jobs_dict[job['Link']]
-
             # Check if the job has any new fields from the detail page that the existing one doesn't
             has_new_details = False
             for key, value in job.items():
@@ -393,8 +494,12 @@ def update_json(new_jobs, filename='jobs_all_processed.json'):
                     existing_job['adding_date'] = original_date
                 existing_job['updated_date'] = datetime.now().isoformat()
 
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(updated_jobs, f, ensure_ascii=False, indent=4)
+        existing_job['last_seen'] = today
+
+    archived = store.archive_old_jobs()
+    if archived:
+        print(f"{archived} jobs not listed for {ARCHIVE_AFTER_DAYS} days moved to '{ARCHIVE_DIR}/'")
+    store.save()
 
     return new_jobs_added
 
@@ -450,12 +555,13 @@ def main():
     # test_scrape_details(2)
     # return
 
-    scraped_jobs, complete = scrape_jobs()
+    store = JobStore()
+    scraped_jobs, complete = scrape_jobs(store)
     if not scraped_jobs:
         print('::error::No jobs could be scraped, nothing was saved')
         sys.exit(1)
 
-    new_jobs = update_json(scraped_jobs)
+    new_jobs = update_json(scraped_jobs, store)
     save_new_jobs(new_jobs)
     print(f"Scraping completed. {len(scraped_jobs)} jobs processed.")
     print(f"{len(new_jobs)} new jobs added to 'jobs_all_processed.json' and saved to 'new_jobs.json'")

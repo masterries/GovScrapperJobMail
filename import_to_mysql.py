@@ -8,6 +8,7 @@ with improved field naming and lineage tracking.
 
 import os
 import sys
+import glob
 import json
 import re
 import pymysql
@@ -25,8 +26,9 @@ DB_CONFIG = {
     'cursorclass': DictCursor
 }
 
-# JSON file
-JSON_FILE = os.getenv('JSON_FILE', './jobs_all_processed.json')
+# JSON files, separated by spaces; glob patterns are allowed. job_scraper.py keeps the active jobs
+# in jobs_all_processed.json and moves older ones to the monthly archive files.
+JSON_FILE = os.getenv('JSON_FILE', './jobs_all_processed.json ./archive/jobs_*.json')
 TABLE_NAME = os.getenv('TABLE_NAME', 'jobs')  # Name of the table to be created
 
 # Field mapping to English-friendly names
@@ -81,6 +83,20 @@ def load_json_data(file_path):
         print(f"❌ Error: File '{file_path}' contains invalid JSON.")
         sys.exit(1)
 
+def load_json_files(patterns):
+    """Loads the records of all files matching the patterns as (file name, record) pairs.
+
+    A pattern without wildcards must exist; a wildcard pattern may match nothing (no archive yet).
+    """
+    records = []
+    for pattern in patterns:
+        paths = sorted(glob.glob(pattern)) if any(ch in pattern for ch in '*?[') else [pattern]
+        for path in paths:
+            data = load_json_data(path)
+            print(f"   {path}: {len(data)} records")
+            records.extend((os.path.basename(path), item) for item in data)
+    return records
+
 def extract_job_id_from_url(url):
     """Extracts the unique ID from the job URL."""
     # Pattern to match the numerical ID at the end of the URL
@@ -90,12 +106,12 @@ def extract_job_id_from_url(url):
         return int(match.group(1))
     return None
 
-def preprocess_data(data):
-    """Preprocesses the data, adding job_id from URL and mapping field names."""
+def preprocess_data(records):
+    """Preprocesses the (file name, record) pairs, adding job_id from URL and mapping field names."""
     processed_data = []
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
-    for item in data:
+    for source_file, item in records:
         processed_item = {}
         
         # Extract job_id from Link field if available, but don't rely on it for uniqueness
@@ -120,7 +136,7 @@ def preprocess_data(data):
             processed_item[new_name] = value
         
         # Add lineage information
-        processed_item['source_file'] = os.path.basename(JSON_FILE)
+        processed_item['source_file'] = source_file
         processed_item['imported_at'] = current_time
         processed_item['added_at'] = current_time  # When the record was added to the database
         
@@ -374,7 +390,7 @@ def main():
     auto_mode = os.getenv('AUTO_MODE', 'false').lower() == 'true'
     
     print(f"🔄 Loading JSON data from {JSON_FILE}...")
-    raw_data = load_json_data(JSON_FILE)
+    raw_data = load_json_files(JSON_FILE.split())
     
     print(f"🔄 Preprocessing data...")
     data = preprocess_data(raw_data)

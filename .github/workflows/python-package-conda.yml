@@ -64,7 +64,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add jobs_all_processed.json new_jobs.json
+          git add jobs_all_processed.json new_jobs.json archive
           git diff --staged --quiet && exit 0
           git commit -m "Update job data"
           for attempt in 1 2 3; do
