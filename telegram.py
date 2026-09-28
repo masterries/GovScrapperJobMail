@@ -1,38 +1,66 @@
 import json
 import requests
-import re
+import html
 import os
+import sys
+import time
 from datetime import datetime, timedelta
 import glob
 
-def send_telegram_message(bot_token, chat_id, message):
+def send_telegram_message(bot_token, chat_id, message, attempts=4):
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": message,
-        "parse_mode": "Markdown"
+        "parse_mode": "HTML"
     }
-    response = requests.post(url, json=payload)
-    return response.json()
+    result = {}
+    for attempt in range(1, attempts + 1):
+        try:
+            response = requests.post(url, json=payload, timeout=(10, 30))
+            result = response.json()
+        except (requests.RequestException, ValueError) as e:
+            # Don't leak the bot token, which is part of the URL, into the log
+            result = {"ok": False, "description": str(e).replace(bot_token, '***')}
+            response = None
 
-def escape_markdown(text):
-    """Escape special characters for Markdown in Telegram."""
-    return re.sub(r'([*_`\[\]()])', r'\\\1', str(text))
+        if result.get('ok'):
+            return result
+        if response is not None and response.status_code < 500 and response.status_code != 429:
+            return result  # e.g. a formatting error, retrying won't help
+        if attempt < attempts:
+            retry_after = result.get('parameters', {}).get('retry_after')
+            time.sleep(min(retry_after, 60) if retry_after else 5 * attempt)
+    return result
 
-def format_job_message(jobs):
-    message = f"*New Relevant Jobs Found - {len(jobs)} jobs*\n\n"
+def format_job_blocks(jobs):
+    blocks = []
     for i, job in enumerate(jobs, 1):
-        title = escape_markdown(job.get('Title', 'No Title'))
-        link = escape_markdown(job.get('Link', '#'))
-        education = escape_markdown(job.get('Education Level', 'Not specified'))
-        category = escape_markdown(job.get('Job Category', 'Not specified'))
-        group = escape_markdown(job.get('Group Classification', 'Not specified'))
-        
-        message += f"{i}. [{title}]({link})\n"
-        message += f"   Education Level: {education}\n"
-        message += f"   Job Category: {category}\n"
-        message += f"   Group Classification: {group}\n\n"
-    return message
+        title = html.escape(str(job.get('Title', 'No Title')))
+        link = html.escape(str(job.get('Link', '#')), quote=True)
+        education = html.escape(str(job.get('Education Level', 'Not specified')))
+        category = html.escape(str(job.get('Job Category', 'Not specified')))
+        group = html.escape(str(job.get('Group Classification', 'Not specified')))
+
+        block = f'{i}. <a href="{link}">{title}</a>\n'
+        block += f"   Education Level: {education}\n"
+        block += f"   Job Category: {category}\n"
+        block += f"   Group Classification: {group}\n\n"
+        blocks.append(block)
+    return blocks
+
+def split_messages(header, blocks, max_length=4000):
+    """Pack whole job blocks into messages, so a link is never cut in half."""
+    messages = []
+    current = header
+    for block in blocks:
+        if len(current) + len(block) > max_length:
+            messages.append(current)
+            current = ''
+        current += block
+    if current:
+        messages.append(current)
+    return messages
 
 def get_latest_jobs_file(directory='relevant_jobs'):
     pattern = os.path.join(directory, 'relevant_jobs_*.json')
@@ -61,7 +89,7 @@ def main():
         return
 
     try:
-        with open(latest_jobs_file, 'r') as f:
+        with open(latest_jobs_file, 'r', encoding='utf-8') as f:
             jobs = json.load(f)
     except json.JSONDecodeError:
         print(f"Error: Unable to parse JSON from {latest_jobs_file}.")
@@ -71,18 +99,23 @@ def main():
         print("No jobs found in the file. Skipping notification.")
         return
 
-    message = format_job_message(jobs)
+    header = f"<b>New Relevant Jobs Found - {len(jobs)} jobs</b>\n\n"
+    # Telegram's max message length is 4096, we leave some buffer
+    messages = split_messages(header, format_job_blocks(jobs))
 
-    # Split message if it's too long
-    max_length = 4000  # Telegram's max message length is 4096, we leave some buffer
-    messages = [message[i:i+max_length] for i in range(0, len(message), max_length)]
-
-    for msg in messages:
+    failed = 0
+    for i, msg in enumerate(messages):
+        if i:
+            time.sleep(1)  # stay below Telegram's flood limits
         response = send_telegram_message(bot_token, chat_id, msg)
         if response.get('ok'):
             print(f"Message sent successfully. Using file: {latest_jobs_file}")
         else:
+            failed += 1
             print(f"Failed to send message. Error: {response.get('description')}")
+
+    if failed:
+        sys.exit(f"{failed} of {len(messages)} Telegram messages could not be sent.")
 
 if __name__ == "__main__":
     main()
