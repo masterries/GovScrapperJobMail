@@ -2,9 +2,9 @@ name: Job Scraping and Firebase Processing Pipeline
 
 on:
   schedule:
-    # Not on the full hour: GitHub delays or drops scheduled runs at :00 when it is busy.
-    # The second run catches up if the first one failed or was dropped.
-    - cron: '17 5 * * *'
+    # Midnight UTC. GitHub starts scheduled runs late (usually ~4h), so in practice
+    # this runs early in the morning in Luxembourg.
+    - cron: '0 0 * * *'
   workflow_dispatch:  # Allow manual triggering
 
 permissions:
