@@ -5,7 +5,6 @@ on:
     # Not on the full hour: GitHub delays or drops scheduled runs at :00 when it is busy.
     # The second run catches up if the first one failed or was dropped.
     - cron: '17 5 * * *'
-    - cron: '47 15 * * *'
   workflow_dispatch:  # Allow manual triggering
 
 permissions:
